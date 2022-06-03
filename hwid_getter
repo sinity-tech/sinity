@@ -1,6 +1,6 @@
-local ffi = require 'ffi'
+ffi = require 'ffi'
 
-local def = ffi.cdef([[ 
+def = ffi.cdef([[ 
     typedef struct MaterialAdapterInfo_t {
             char m_pDriverName[512];
             unsigned int m_VendorID;
@@ -18,18 +18,18 @@ local def = ffi.cdef([[
     typedef void(__thiscall* get_adapter_info_fn)(void*, int adapter, struct MaterialAdapterInfo_t& info);
     ]])
 
-local material_system = client.create_interface('materialsystem.dll', 'VMaterialSystem080')
-local material_interface = ffi.cast('void***', material_system)[0]
+material_system = client.create_interface('materialsystem.dll', 'VMaterialSystem080')
+material_interface = ffi.cast('void***', material_system)[0]
 
-local get_current_adapter = ffi.cast('get_current_adapter_fn', material_interface[25])
-local get_adapter_info = ffi.cast('get_adapter_info_fn', material_interface[26])
+get_current_adapter = ffi.cast('get_current_adapter_fn', material_interface[25])
+get_adapter_info = ffi.cast('get_adapter_info_fn', material_interface[26])
 
-local current_adapter = get_current_adapter(material_interface)
+current_adapter = get_current_adapter(material_interface)
 
-local adapter_struct = ffi.new('struct MaterialAdapterInfo_t')
+adapter_struct = ffi.new('struct MaterialAdapterInfo_t')
 get_adapter_info(material_interface, current_adapter, adapter_struct)
 
-local vendorId = tostring(adapter_struct['m_VendorID'])
-local deviceId = tostring(adapter_struct['m_DeviceID'])
+vendorId = tostring(adapter_struct['m_VendorID'])
+deviceId = tostring(adapter_struct['m_DeviceID'])
 
 hwid = math.floor(math.sqrt(tonumber(vendorId + deviceId))) * 100
