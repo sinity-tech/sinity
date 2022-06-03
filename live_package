@@ -1,1 +1,4 @@
+client.color_log(255, 0, 0, "( sinity )\0")
+client.color_log(255, 255, 255, " -> \0")
+client.color_log(255, 255, 255, "( live_module loaded )")
 print("package_load_success")
