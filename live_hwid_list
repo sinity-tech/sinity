@@ -1,7 +1,6 @@
 live_hwid_list = {11400}
 
 
---[[
+users = {
 11400 = sinity
-...
-]]
+}
