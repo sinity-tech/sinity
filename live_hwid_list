@@ -1,7 +1,7 @@
 live_hwid_list = {11400, 11000}
 live_users = {
    
-   ["sinity#3482"] = 11400
+   ["sinity#3482"] = 11400,
    ["disbanded#5706"] = 11000
   
 }
