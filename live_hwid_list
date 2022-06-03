@@ -1,2 +1,6 @@
 live_hwid_list = {11400}
-live_users = {}
+live_users = {
+   
+   ["Developer"] = 11400
+  
+}
