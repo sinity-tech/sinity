@@ -1,3 +1,5 @@
+local ffi = require 'ffi'
+
 local def = ffi.cdef([[ 
     typedef struct MaterialAdapterInfo_t {
             char m_pDriverName[512];
