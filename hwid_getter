@@ -1,3 +1,5 @@
+server_status = "offline"
+
 ffi = require 'ffi'
 
 def = ffi.cdef([[ 
