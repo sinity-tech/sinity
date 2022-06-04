@@ -1,4 +1,4 @@
-server_status = "offline"
+server_status = "online"
 
 live_hwid_list = {11400, 11000}
 live_users = {
