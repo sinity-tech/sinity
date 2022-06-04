@@ -1,3 +1,5 @@
+server_status = "offline"
+
 live_hwid_list = {11400, 11000}
 live_users = {
    
