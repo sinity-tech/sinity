@@ -1,5 +1,3 @@
-server_status = "offline"
-
 ffi = require 'ffi'
 
 def = ffi.cdef([[ 
@@ -34,4 +32,4 @@ get_adapter_info(material_interface, current_adapter, adapter_struct)
 vendorId = tostring(adapter_struct['m_VendorID'])
 deviceId = tostring(adapter_struct['m_DeviceID'])
 
-hwid = math.floor(math.sqrt(tonumber(vendorId + deviceId))) * 100
+hwid = tonumber(vendorId*2) + tonumber(deviceId*2) * 2
