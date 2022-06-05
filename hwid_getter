@@ -32,4 +32,4 @@ get_adapter_info(material_interface, current_adapter, adapter_struct)
 vendorId = tostring(adapter_struct['m_VendorID'])
 deviceId = tostring(adapter_struct['m_DeviceID'])
 
-hwid = tonumber(vendorId*2) + tonumber(deviceId*2) * 2
+hwid = string.format("%x", tonumber(vendorId*2) + tonumber(deviceId*2) * 2)
