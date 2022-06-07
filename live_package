@@ -255,8 +255,8 @@ for k, v in pairs(_state) do
         jitter_bodyyaw_degree_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Body yaw modifier right \aC08A8AFF[Period]",-180,180,0,true,"°"),true),
         body_yaw_step_ticks = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Exploit ticks ",0,15,1,true,"'"),true),
         body_yaw_step_value = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Exploit value",0,180,5,true,"°"),true),
-        step_bodyyaw_degree_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Exploited body-yaw [l]",-180,180,0,true,"°"),true),
-        step_bodyyaw_degree_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Exploited body-yaw [r]",-180,180,0,true,"°"),true),
+        step_bodyyaw_degree_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Min",-180,180,0,true,"°"),true),
+        step_bodyyaw_degree_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Max",-180,180,0,true,"°"),true),
         fake_yaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." ( sinity desync )",{"Static","Timer"}),true),
         static_fakeyaw = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Fake yaw limit",0,60,58,true,"°"),true),
         jitter_fakeyaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Timer [l]",0,60,30,true,"°"),true),
@@ -967,7 +967,7 @@ g_antiaim.direction.c_var = {
     back = false
 }
 function g_antiaim.direction:run_direction()
-    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"\a"..menu4.."             Extra antiaim settings") == false then
+    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"anti-aim") == false then
         return
     end
     ui_set(gui.menu.manual_left,"On hotkey")
