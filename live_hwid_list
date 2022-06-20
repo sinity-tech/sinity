@@ -1,10 +1,9 @@
 server_status = true
  
-beta_hwids = {"a9dc", "9dfc"}
+beta_hwids = {"a9dc"}
  
 beta_users = {
  
    ["sinity#3482"] = "a9dc",
-   ["disbanded#5706"] = "9dfc",
  
 }
