@@ -1,9 +1,10 @@
 server_status = true
  
-live_hwid_list = {"a9dc", "9dfc"}
-live_users = {
+beta_hwids = {"a9dc", "9dfc"}
+ 
+beta_users = {
  
    ["admin"] = "a9dc",
-   ["disbanded"] = "9dfc",
+   ["disbanded"] = "9dfc"
  
 }
