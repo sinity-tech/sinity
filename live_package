@@ -9,7 +9,7 @@ local table_sort, table_remove, table_concat, table_insert = table.sort, table.r
 local find_material = materialsystem.find_material
 local string_find, string_format, string_gsub, string_len, string_gmatch, string_match, string_reverse, string_upper, string_lower, string_sub = string.find, string.format, string.gsub, string.len, string.gmatch, string.match, string.reverse, string.upper, string.lower, string.sub
 local ipairs, assert, pairs, next, tostring, tonumber, setmetatable, unpack, type, getmetatable, pcall, error = ipairs, assert, pairs, next, tostring, tonumber, setmetatable, unpack, type, getmetatable, pcall, error
-
+local states = 0
 
 local lib = {
     ['gamesense/antiaim_funcs'] = 'https://gamesense.pub/forums/viewtopic.php?id=29665',
@@ -21,7 +21,6 @@ local lib = {
     ['gamesense/easing'] = 'https://gamesense.pub/forums/viewtopic.php?id=22920'
 
 }
-
 local lib_notsub = { }
 
 for i, v in pairs(lib) do
@@ -31,7 +30,7 @@ for i, v in pairs(lib) do
 end
 
 for i=1, #lib_notsub do
-    error("Insufficient librarys  \n" .. table.concat(lib_notsub, ", \n"))
+    error("pls sub the API \n" .. table.concat(lib_notsub, ", \n"))
 end
 
 local antiaim_funcs = require('gamesense/antiaim_funcs')
@@ -80,10 +79,24 @@ local antiaim = {
 
     quick_peek_assist = { ui.reference("RAGE", "Other", "Quick peek assist") },
 }
+
+ui_set_visible(antiaim.enabled, true)
+ui_set_visible(antiaim.pitch, false)
+ui_set_visible(antiaim.yaw_base, false)
+ui_set_visible(antiaim.yaw[1], false)
+ui_set_visible(antiaim.yaw[2], false)
+ui_set_visible(antiaim.yaw_jitter[1], false)
+ui_set_visible(antiaim.yaw_jitter[2], false)
+ui_set_visible(antiaim.body_yaw[1], false)
+ui_set_visible(antiaim.body_yaw[2], false)
+ui_set_visible(antiaim.freestanding_body_yaw, false)
+ui_set_visible(antiaim.fake_yaw_limit, false)
+ui_set_visible(antiaim.edge_yaw, false)
+ui_set_visible(antiaim.freestanding[1], false)
+ui_set_visible(antiaim.freestanding[2], false)
+ui_set_visible(antiaim.roll, false)
+
 local status = {
-    build = "alpha",
-    last_updatetime = "22/5/5",
-    username = "ShitPaste lua",
     checkban = false,
     connection = true
 }
@@ -97,6 +110,14 @@ local render = {}
 local g_antiaim = {}
 
 funcs.misc = {}
+
+function funcs.misc:lua_msg(msg)
+    client_color_log(192,138,138,'[Ataraxia] '..msg)
+end
+
+function funcs.misc:lua_msg_banned(msg)
+    client_color_log(255,0,0,'[Ataraxia] '..msg)
+end
 
 funcs.ui = {}
 
@@ -186,44 +207,40 @@ gui.export = {
     ['string'] = {}
 }
 gui.tab = {
-    "LUA","B","AA","Anti-aimbot angles"
+    "AA","Anti-aimbot angles", "AA","Anti-aimbot angles"
 }
 
 local menu1,menu2,menu3,menu4 = "646464FF","646464FF","646464FF","646464FF"
-local _state = {"Stand","Move","Slow walk","Duck","Air"}
-local __state = {"[S]","[M]","[SW]","[D]","[A]"}
+local _state = {"stand","move","slow walk","duck","air"}
+local __state = {"\a7C90DEFF(stand)","\a7C90DEFF(move)","\a7C90DEFF(slow)","\a7C90DEFF(duck)","\a7C90DEFF(air)"}
 
 gui.menu = {
-    spacing = main:ui(ui.new_label(gui.tab[1],gui.tab[2],"                                       "),false),
+    master_swtich = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"\a7C90DEFFeternal"),true),
+    main_list = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a7C90DEFFenables","-indicators-","-aa-","-misc-"),true),
+    presets = main:ui(ui_new_combobox(gui.tab[1],gui.tab[2],"\a7C90DEFFpresets",{"aggro", "defense", "dynamic"}),true),
+    preset_static = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a7C90DEFFstatic if...","*stand*","*move*","*slow walk*","*duck*","*jump*"),true),
+    antiaim_settings = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a7C90DEFFextra aa","aa - use","edgeyaw","freestanding"),true),
+    indicator_settings = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a7C90DEFFindicator setts", "ind", "watermark"),true),
 
-    master_swtich = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"sinity"),true),
-    main_list = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"feature select",
-    "visuals","anti-aim","miscellaneous"),true),
-    presets = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"custom dynamic anti-aim"),true),
-    indicator_settings = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"indicator select","v1"),true),
-
-    indicator_color = main:ui(ui_new_color_picker(gui.tab[1],gui.tab[2],"Mainc",255,45,45,255),true),
-    watermark_color = main:ui(ui_new_color_picker(gui.tab[1],gui.tab[2],"watermark",192,138,138,255),true),
+    indicator_color = main:ui(ui_new_color_picker(gui.tab[1],gui.tab[2],"Mainc",149,111,213,255),true),
     manualarrow_size = main:ui(ui_new_combobox(gui.tab[1],gui.tab[2],"[-] Arrow mode",{"+","-"}),true),
     manualarrow_back = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"Background shadow"),true),
     manualarrow_distance = main:ui(ui_new_slider(gui.tab[1],gui.tab[2],"Arrow distance",0,100,15,true,"*"),true),
-    antiaim_settings = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"extras", "freestanding"),true),
-    forceroll_states = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"[-] Roll states","\a646464FF Stand","\a646464FF Move","\a646464FF Slow walk","\a646464FF Duck","\a646464FF Air","\a646464FF Use","\a646464FF Manual"),true),
+    forceroll_states = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"[-] Roll states","*stand*","*move*","*slow walk*","*duck*","*jump*","\a646464FF Use","\a646464FF Manual"),true),
     roll_key = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"[-] Roll states",0),false),
-    roll_selects = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"[-] Extra roll options",{"\aF8F884D1 Match making","\aF8F884D1 Jitter","\aF8F884D1 Disable roll when peeking","\aFA3F3FFF Unsafe roll"})),
+    roll_selects = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"[-] Extra roll options",{"\aF8F884D1 Match making","\aF8F884D1 Jitter","\aF8F884D1 Disabnc modle roll when peeking","\aFA3F3FFF Unsafe roll"})),
     roll_inverter = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"Inverter"),false),
-    disable_use = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"Disable use to plant"),true),
-    static_onuse = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"Force static on use"),true),
+    disable_use = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"\a7C90DEFFuse - plant 0"),true),
+    static_onuse = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"\a7C90DEFFuse - static"),true),
     prevent_jitter = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"Prevent sideways jitter"),true),
     manual_left = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"Manual left"),false),
     manual_right = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"Manual right"),false),
     manual_reset = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"Reset"),false),
-    edge_yaw_key = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"Edge yaw"),false),
-    freestanding_key = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"freestanding"),false),
-    misc_settings = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2], "miscellaneous","animations","clan-tag"),true),
-    pitch0_onknife = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"Reset pitch on knife"),true),
-    knife_distance = main:ui(ui_new_slider(gui.tab[1],gui.tab[2],"Anti knife radius",0,1000,280,true,"u"),true),
-    anim_list = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"animations","local static legs in air","local no pitch on land","reverse slide"),true),
+    edge_yaw_key = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"\a7C90DEFFedge yaw"),false),
+    freestanding_key = main:ui(ui_new_hotkey(gui.tab[1],gui.tab[2],"\a7C90DEFFfreestanding"),false),
+    misc_settings = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a7C90DEFFmiscellaneous","anti-knifebot","animations"),true),
+    knife_distance = main:ui(ui_new_slider(gui.tab[1],gui.tab[2],"\a7C90DEFFradius",0,300,150,true,"u"),true),
+    anim_list = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a7C90DEFFanim select","jumping","ground","legs"),true),
     states_selection = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],"Condition selection",_state),true),
 
     fake_lag_limit_d = main:ui(ui_new_slider(gui.tab[3],"Fake lag","Limit",1,15,14),true),
@@ -237,36 +254,37 @@ gui.menu = {
 gui.menu.custom = {}
 for k, v in pairs(_state) do
     gui.menu.custom[k] = {
-        enable = main:ui(ui_new_checkbox(gui.tab[3],gui.tab[4],"Enable ".._state[k].. " setting"),true),
-        yaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." ( sinity yaw )",{"Static","Tick choke","Choke flick","Experimental flick"}),true),
-        static_yaw = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." static yaw",-80,80,0,true,"°"),true),
-        tick_yaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Tick choke [l]",-80,80,0,true,"°"),true),
-        tick_yaw_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Tick choke [r]",-80,80,0,true,"°"),true),
-        choke_yaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Cmd choke [l]",-80,80,0,true,"°"),true),
-        choke_yaw_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Cmd choke [r]",-80,80,0,true,"°"),true),
-        desync_yaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Experimental flick [l]",-80,80,0,true,"°"),true),
-        desync_yaw_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Experimental flick [l]",-80,80,0,true,"°"),true),
-        yaw_jitter = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." Gamesense yaw mode",{ "Off", "Offset", "Center", "Random" }),true),
-        yaw_jitter_degree = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Gamesense yaw jitter degree",0,120,0,true,"°"),true),
-        self_bodyyaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." Gamesense body yaw mode",{ "Off", "Opposite", "Jitter", "Static"  }),true),
-        bodyyaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." ( sinity body-yaw )",{"Static","Exploit"}),true),
-        bodyyaw_degree = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." body-yaw deg",-180,180,0,true,"°"),true),
-        jitter_bodyyaw_degree_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Body yaw modifier left \aC08A8AFF[Period]",-180,180,0,true,"°"),true),
-        jitter_bodyyaw_degree_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Body yaw modifier right \aC08A8AFF[Period]",-180,180,0,true,"°"),true),
-        body_yaw_step_ticks = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Exploit ticks ",0,15,1,true,"'"),true),
-        body_yaw_step_value = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Exploit value",0,180,5,true,"°"),true),
-        step_bodyyaw_degree_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Min",-180,180,0,true,"°"),true),
-        step_bodyyaw_degree_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Max",-180,180,0,true,"°"),true),
-        fake_yaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." ( sinity desync )",{"Static","Timer"}),true),
+        enable = main:ui(ui_new_checkbox(gui.tab[3],gui.tab[4],"\a7C90DEFFenable ".._state[k]),true),
+        extra_options = main:ui(ui_new_checkbox(gui.tab[3],gui.tab[4],__state[k].." static [i]"),true),
+        yaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." custom yaw",{"static","Period jitter \a7C90DEFF[Tick]","Period jitter \a7C90DEFF[Choke]","Period jitter \a7C90DEFF[Desync]"}),true),
+        static_yaw = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Yaw modifier",-80,80,0,true,"°"),true),
+        tick_yaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Yaw modifier left \a7C90DEFF[Tick]",-80,80,0,true,"°"),true),
+        tick_yaw_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Yaw modifier right \a7C90DEFF[Tick]",-80,80,0,true,"°"),true),
+        choke_yaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Yaw modifier left \a7C90DEFF[Choke]",-80,80,0,true,"°"),true),
+        choke_yaw_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Yaw modifier right \a7C90DEFF[Choke]",-80,80,0,true,"°"),true),
+        desync_yaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Yaw modifier left \a7C90DEFF[Desync]",-80,80,0,true,"°"),true),
+        desync_yaw_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Yaw modifier right \a7C90DEFF[Desync]",-80,80,0,true,"°"),true),
+        yaw_jitter = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." Native yaw mode",{ "Off", "Offset", "Center", "Random" }),true),
+        yaw_jitter_degree = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Native yaw jitter degree",0,120,0,true,"°"),true),
+        self_bodyyaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." Native body yaw mode",{ "Off", "Opposite", "Jitter", "static"  }),true),
+        bodyyaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." Body yaw mode built-in funcs",{"static","Period jitter","Recursion"}),true),
+        bodyyaw_degree = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Body yaw modifier",-180,180,0,true,"°"),true),
+        jitter_bodyyaw_degree_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Body yaw modifier left \a7C90DEFF[Period]",-180,180,0,true,"°"),true),
+        jitter_bodyyaw_degree_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Body yaw modifier right \a7C90DEFF[Period]",-180,180,0,true,"°"),true),
+        body_yaw_step_ticks = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Recursion ticks ",0,15,1,true,"'"),true),
+        body_yaw_step_value = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Recursion value",0,180,5,true,"°"),true),
+        step_bodyyaw_degree_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Body yaw modifier min \a7C90DEFF[Recursion]",-180,180,0,true,"°"),true),
+        step_bodyyaw_degree_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Body yaw modifier max \a7C90DEFF[Recursion]",-180,180,0,true,"°"),true),
+        fake_yaw_mode = main:ui(ui_new_combobox(gui.tab[3],gui.tab[4],__state[k].." desync°",{"static","tick flaw"}),true),
         static_fakeyaw = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Fake yaw limit",0,60,58,true,"°"),true),
-        jitter_fakeyaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Timer [l]",0,60,30,true,"°"),true),
-        jitter_fakeyaw_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Timer [r]",0,60,30,true,"°"),true),
+        jitter_fakeyaw_left = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." left",0,60,30,true,"°"),true),
+        jitter_fakeyaw_right = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." right",0,60,30,true,"°"),true),
         step_ticks = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Progressive ticks",0,15,7,true,"'"),true),
         step_value = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Progressive value",0,60,5,true,"°"),true),
         step_abs = main:ui(ui_new_checkbox(gui.tab[3],gui.tab[4],__state[k].." Increment absolute value"),true),
-        step_fake_min = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Fake yaw limit - \aC08A8AFFmin",0,60,58,true,"°"),true),
-        step_fake_max = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Fake yaw limit - \aC08A8AFFmax",0,60,58,true,"°"),true),
-        freestanding_bodyyaw = main:ui(ui_new_checkbox(gui.tab[3],gui.tab[4],__state[k].." Freestanding bodyyaw"),true),
+        step_fake_min = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Fake yaw limit - \a7C90DEFFmin",0,60,58,true,"°"),true),
+        step_fake_max = main:ui(ui_new_slider(gui.tab[3],gui.tab[4],__state[k].." Fake yaw limit - \a7C90DEFFmax",0,60,58,true,"°"),true),
+        freestanding_bodyyaw = main:ui(ui_new_checkbox(gui.tab[3],gui.tab[4],__state[k].." Freestanding bodyyaw"),true)
     }
 end
 
@@ -284,20 +302,20 @@ g_antiaim.save_antiaims = {
 }
 
 function g_antiaim:og_menu(state)
-    ui_set_visible(antiaim.pitch, not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.yaw_base, not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.yaw[1], not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.yaw[2], not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.yaw_jitter[1], not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.yaw_jitter[2], not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.body_yaw[1], not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.body_yaw[2], not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.fake_yaw_limit, not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.freestanding_body_yaw, not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.edge_yaw, not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.freestanding[1], not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.freestanding[2], not ui_get(gui.menu.presets))
-    ui_set_visible(antiaim.roll, not ui_get(gui.menu.presets))
+    ui_set_visible(antiaim.pitch, state)
+    ui_set_visible(antiaim.yaw_base, state)
+    ui_set_visible(antiaim.yaw[1], state)
+    ui_set_visible(antiaim.yaw[2], state)
+    ui_set_visible(antiaim.yaw_jitter[1], state)
+    ui_set_visible(antiaim.yaw_jitter[2], state)
+    ui_set_visible(antiaim.body_yaw[1], state)
+    ui_set_visible(antiaim.body_yaw[2], state)
+    ui_set_visible(antiaim.fake_yaw_limit, state)
+    ui_set_visible(antiaim.freestanding_body_yaw, state)
+    ui_set_visible(antiaim.edge_yaw, state)
+    ui_set_visible(antiaim.freestanding[1], state)
+    ui_set_visible(antiaim.freestanding[2], state)
+    ui_set_visible(antiaim.roll, state)
 end
 
 
@@ -360,7 +378,7 @@ function g_antiaim.jitter:choke_body_yaw(a,b)
 
     if ui_get(antiaim.body_yaw[1]) == "Jitter" then
         return inverted and a or b
-    elseif ui_get(antiaim.body_yaw[1]) == "Static" then
+    elseif ui_get(antiaim.body_yaw[1]) == "static" then
         return invert and a or b
     end
 
@@ -392,7 +410,7 @@ function g_antiaim.jitter:desync(a,b)
 
     if ui_get(antiaim.body_yaw[1]) == "Jitter" then
         return inverted and a or b
-    elseif ui_get(antiaim.body_yaw[1]) == "Static" then
+    elseif ui_get(antiaim.body_yaw[1]) == "static" then
         return invert and a or b
     else 
         return a
@@ -474,43 +492,43 @@ function g_antiaim:run_custom(cmd)
     self.save_antiaims.yaw_1 = "180"
     self.save_antiaims.pitch = "Default"
 
-    if self.c_var.c == 1 and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    if self.c_var.c == 1 and ui_get(m[1].extra_options) and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 0
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
-    elseif self.c_var.c == 2 and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    elseif self.c_var.c == 2 and ui_get(m[2].extra_options) and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 0
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
-    elseif self.c_var.c == 3 and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    elseif self.c_var.c == 3 and ui_get(m[3].extra_options) and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 24 
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
-    elseif self.c_var.c == 4 and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    elseif self.c_var.c == 4 and ui_get(m[4].extra_options) and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 35 
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
-    elseif self.c_var.c == 5 and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    elseif self.c_var.c == 5 and ui_get(m[5].extra_options) and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 15
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -553,14 +571,14 @@ function g_antiaim:run_custom(cmd)
         end
 
 
-        -- {"Static","Tick choke","Choke flick","Experimental flick"}
-        if ui_get(m[self.c_var.c].yaw_mode) == "Static" then
+        -- {"static","Period jitter \a7C90DEFF[Tick]","Period jitter \a7C90DEFF[Choke]","Period jitter \a7C90DEFF[Desync]"}
+        if ui_get(m[self.c_var.c].yaw_mode) == "static" then
             self.save_antiaims.yaw_2 = ui_get(m[self.c_var.c].static_yaw)
-        elseif ui_get(m[self.c_var.c].yaw_mode) == "Tick choke" then
+        elseif ui_get(m[self.c_var.c].yaw_mode) == "Period jitter \a7C90DEFF[Tick]" then
             self.save_antiaims.yaw_2 = self.jitter:tick(ui_get(m[self.c_var.c].tick_yaw_left),ui_get(m[self.c_var.c].tick_yaw_right))
-        elseif ui_get(m[self.c_var.c].yaw_mode) == "Choke flick" then
+        elseif ui_get(m[self.c_var.c].yaw_mode) == "Period jitter \a7C90DEFF[Choke]" then
             self.save_antiaims.yaw_2 = self.jitter:choke_yaw(ui_get(m[self.c_var.c].choke_yaw_left),ui_get(m[self.c_var.c].choke_yaw_right))
-        elseif ui_get(m[self.c_var.c].yaw_mode) == "Experimental flick" then
+        elseif ui_get(m[self.c_var.c].yaw_mode) == "Period jitter \a7C90DEFF[Desync]" then
             self.save_antiaims.yaw_2 = self.jitter:desync(ui_get(m[self.c_var.c].desync_yaw_left),ui_get(m[self.c_var.c].desync_yaw_right))
         end
 
@@ -568,18 +586,18 @@ function g_antiaim:run_custom(cmd)
         self.save_antiaims.yaw_jitter_2 = ui_get(m[self.c_var.c].yaw_jitter_degree)
         self.save_antiaims.body_yaw_1 = ui_get(m[self.c_var.c].self_bodyyaw_mode)
 
-        if ui_get(m[self.c_var.c].bodyyaw_mode) == "Static" then
+        if ui_get(m[self.c_var.c].bodyyaw_mode) == "static" then
             self.save_antiaims.body_yaw_2 = ui_get(m[self.c_var.c].bodyyaw_degree)
         elseif ui_get(m[self.c_var.c].bodyyaw_mode) == "Period jitter" then
             self.save_antiaims.body_yaw_2 = self.jitter:choke_body_yaw(ui_get(m[self.c_var.c].jitter_bodyyaw_degree_left) ,  ui_get(m[self.c_var.c].jitter_bodyyaw_degree_right)) 
-        elseif ui_get(m[self.c_var.c].bodyyaw_mode) == "Exploit" then
+        elseif ui_get(m[self.c_var.c].bodyyaw_mode) == "Recursion" then
             self.save_antiaims.body_yaw_2 = self:clamp(self.c_var.bodystep_return_value,self.c_var.bodystep_min,self.c_var.bodystep_max)
         end
 
-        -- {"Static","Timer","Progressively increase"}
-        if ui_get(m[self.c_var.c].fake_yaw_mode) == "Static" then
+        -- {"static","tick flaw","Progressively increase"}
+        if ui_get(m[self.c_var.c].fake_yaw_mode) == "static" then
             self.save_antiaims.fake_yaw_limit = ui_get(m[self.c_var.c].static_fakeyaw)
-        elseif ui_get(m[self.c_var.c].fake_yaw_mode) == "Timer" then
+        elseif ui_get(m[self.c_var.c].fake_yaw_mode) == "tick flaw" then
             self.save_antiaims.fake_yaw_limit = self.jitter:choke_fake(ui_get(m[self.c_var.c].jitter_fakeyaw_left),ui_get(m[self.c_var.c].jitter_fakeyaw_right))
         elseif ui_get(m[self.c_var.c].fake_yaw_mode) == "Progressively increase" then
             if ui_get(m[self.c_var.c].step_abs) then
@@ -651,16 +669,16 @@ local presets_vars = {
 }
 
 function g_antiaim:run_presets_1(cmd)
-    local states = self:run_presets_states(cmd)
+    states = self:run_presets_states(cmd)
 
     self.save_antiaims.yaw_base = "At targets"
     self.save_antiaims.yaw_1 = "180"
     self.save_antiaims.pitch = "Default"
-    if states == 1 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Stand") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    if states == 1 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*stand*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 0
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -668,7 +686,7 @@ function g_antiaim:run_presets_1(cmd)
         self.save_antiaims.yaw_2 = self.jitter:desync(18,28)
         self.save_antiaims.yaw_jitter_1 = "Center"
         self.save_antiaims.yaw_jitter_2 = 67
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         presets_vars.st_max = 180
         presets_vars.st_min = 90
         presets_vars.st_step = 1
@@ -696,22 +714,22 @@ function g_antiaim:run_presets_1(cmd)
         self.save_antiaims.freestanding_body_yaw = false
     end
 
-    if states == 2 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Move") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    if states == 2 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*move*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 0
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
     elseif states == 2 then
-        self.save_antiaims.yaw_2 = self.jitter:desync(10,-5)
+        self.save_antiaims.yaw_2 = self.jitter:desync(20,-23)
         self.save_antiaims.yaw_jitter_1 = "Center"
-        self.save_antiaims.yaw_jitter_2 = 70
+        self.save_antiaims.yaw_jitter_2 = 38
         self.save_antiaims.body_yaw_1 = "Jitter"
         self.save_antiaims.body_yaw_2 = 0
         presets_vars.m_max_desync = 60
-        presets_vars.m_min_desync = 30
+        presets_vars.m_min_desync = 60
         presets_vars.m_step_desync = 5
         presets_vars.m_stepticks_desync = globals_tickcount() % 2
         if presets_vars.m_stepticks_desync == 1 - 1 then
@@ -727,11 +745,11 @@ function g_antiaim:run_presets_1(cmd)
 
 
 
-    if states == 3 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Duck") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    if states == 3 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*duck*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 24 
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -757,11 +775,11 @@ function g_antiaim:run_presets_1(cmd)
     end
 
 
-    if states == 4 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Slow walk") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    if states == 4 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*slow walk*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 35 
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -769,7 +787,7 @@ function g_antiaim:run_presets_1(cmd)
         self.save_antiaims.yaw_2 = self.jitter:desync(30,10)
         self.save_antiaims.yaw_jitter_1 = "Center"
         self.save_antiaims.yaw_jitter_2 = 41
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         presets_vars.st_max = 180
         presets_vars.st_min = 90
         presets_vars.st_step = 1
@@ -798,18 +816,18 @@ function g_antiaim:run_presets_1(cmd)
     end
 
 
-    if states == 5 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Air") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    if states == 5 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*jump*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 15
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
     elseif states == 5 then
-        self.save_antiaims.yaw_2 = self.jitter:desync(20,6)
+        self.save_antiaims.yaw_2 = self.jitter:desync(10,-5)
         self.save_antiaims.yaw_jitter_1 = "Center"
-        self.save_antiaims.yaw_jitter_2 = 66
+        self.save_antiaims.yaw_jitter_2 = 35
         self.save_antiaims.body_yaw_1 = "Jitter"
         self.save_antiaims.body_yaw_2 = 0
         presets_vars.m_max_desync = 60
@@ -831,7 +849,7 @@ function g_antiaim:run_presets_1(cmd)
     --     self.save_antiaims.yaw_2 = self.jitter:desync(18,28)
     --     self.save_antiaims.yaw_jitter_1 = "Center"
     --     self.save_antiaims.yaw_jitter_2 = 67
-    --     self.save_antiaims.body_yaw_1 = "Static"
+    --     self.save_antiaims.body_yaw_1 = "static"
     --     presets_vars.st_max = 180
     --     presets_vars.st_min = 90
     --     presets_vars.st_step = 1
@@ -905,7 +923,7 @@ function g_antiaim:run_presets_1(cmd)
     --     self.save_antiaims.yaw_2 = self.jitter:desync(30,10)
     --     self.save_antiaims.yaw_jitter_1 = "Center"
     --     self.save_antiaims.yaw_jitter_2 = 41
-    --     self.save_antiaims.body_yaw_1 = "Static"
+    --     self.save_antiaims.body_yaw_1 = "static"
     --     presets_vars.st_max = 180
     --     presets_vars.st_min = 90
     --     presets_vars.st_step = 1
@@ -958,6 +976,366 @@ function g_antiaim:run_presets_1(cmd)
 
 
 end
+
+
+
+function g_antiaim:run_presets_2(cmd)
+    states = self:run_presets_states(cmd)
+
+    self.save_antiaims.yaw_base = "At targets"
+    self.save_antiaims.yaw_1 = "180"
+    self.save_antiaims.pitch = "Default"
+    if states == 1 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*stand*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 0
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 1 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(18,28)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 67
+        self.save_antiaims.body_yaw_1 = "static"
+        presets_vars.st_max = 180
+        presets_vars.st_min = 90
+        presets_vars.st_step = 1
+        presets_vars.st_stepticks = globals_tickcount() % 1
+        if presets_vars.st_stepticks == 1 - 1 then
+            if presets_vars.st_return_values < presets_vars.st_max then
+                presets_vars.st_return_values = presets_vars.st_return_values + 1
+            elseif presets_vars.st_return_values >= presets_vars.st_max  then
+                presets_vars.st_return_values = presets_vars.st_min
+            end
+        end
+        self.save_antiaims.body_yaw_2 = self:clamp(presets_vars.st_return_values,presets_vars.st_min,presets_vars.st_max)
+        presets_vars.st_max_desync = 60
+        presets_vars.st_min_desync = 20
+        presets_vars.st_step_desync = 5
+        presets_vars.st_stepticks_desync = globals_tickcount() % 3
+        if presets_vars.st_stepticks_desync == 1 - 1 then
+            if presets_vars.st_return_values_desync < presets_vars.st_max_desync then
+                presets_vars.st_return_values_desync = presets_vars.st_return_values_desync + 1
+            elseif presets_vars.st_return_values_desync >= presets_vars.st_max_desync  then
+                presets_vars.st_return_values_desync = presets_vars.st_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.st_return_values_desync,presets_vars.st_min_desync,presets_vars.st_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+    if states == 2 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*move*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 0
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 2 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(14,-14)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 55
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 60
+        presets_vars.m_step_desync = 5
+        presets_vars.m_stepticks_desync = globals_tickcount() % 2
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+
+    if states == 3 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*duck*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 24 
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 3 then 
+        self.save_antiaims.yaw_2 = self.jitter:desync(35,-10)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 25
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 5
+        presets_vars.m_stepticks_desync = globals_tickcount() % 2
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+    if states == 4 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*slow walk*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 35 
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 4 then 
+        self.save_antiaims.yaw_2 = self.jitter:desync(30,10)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 41
+        self.save_antiaims.body_yaw_1 = "static"
+        presets_vars.st_max = 180
+        presets_vars.st_min = 90
+        presets_vars.st_step = 1
+        presets_vars.st_stepticks = globals_tickcount() % 1
+        if presets_vars.st_stepticks == 1 - 1 then
+            if presets_vars.st_return_values < presets_vars.st_max then
+                presets_vars.st_return_values = presets_vars.st_return_values + 1
+            elseif presets_vars.st_return_values >= presets_vars.st_max  then
+                presets_vars.st_return_values = presets_vars.st_min
+            end
+        end
+        self.save_antiaims.body_yaw_2 = self:clamp(presets_vars.st_return_values,presets_vars.st_min,presets_vars.st_max)
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 1
+        presets_vars.m_stepticks_desync = globals_tickcount() % 1
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+    if states == 5 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Air") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 15
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 5 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(20,6)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 66
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 1
+        presets_vars.m_stepticks_desync = globals_tickcount() % 1
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+end
+
+function g_antiaim:run_presets_3(cmd)
+local states = self:run_presets_states(cmd)
+
+    self.save_antiaims.yaw_base = "At targets"
+    self.save_antiaims.yaw_1 = "180"
+    self.save_antiaims.pitch = "Default"
+    if states == 1 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Stand") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 0
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 1 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(18,28)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 67
+        self.save_antiaims.body_yaw_1 = "static"
+        presets_vars.st_max = 180
+        presets_vars.st_min = 90
+        presets_vars.st_step = 1
+        presets_vars.st_stepticks = globals_tickcount() % 1
+        if presets_vars.st_stepticks == 1 - 1 then
+            if presets_vars.st_return_values < presets_vars.st_max then
+                presets_vars.st_return_values = presets_vars.st_return_values + 1
+            elseif presets_vars.st_return_values >= presets_vars.st_max  then
+                presets_vars.st_return_values = presets_vars.st_min
+            end
+        end
+        self.save_antiaims.body_yaw_2 = self:clamp(presets_vars.st_return_values,presets_vars.st_min,presets_vars.st_max)
+        presets_vars.st_max_desync = 60
+        presets_vars.st_min_desync = 20
+        presets_vars.st_step_desync = 5
+        presets_vars.st_stepticks_desync = globals_tickcount() % 3
+        if presets_vars.st_stepticks_desync == 1 - 1 then
+            if presets_vars.st_return_values_desync < presets_vars.st_max_desync then
+                presets_vars.st_return_values_desync = presets_vars.st_return_values_desync + 1
+            elseif presets_vars.st_return_values_desync >= presets_vars.st_max_desync  then
+                presets_vars.st_return_values_desync = presets_vars.st_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.st_return_values_desync,presets_vars.st_min_desync,presets_vars.st_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+    if states == 2 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Move") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 0
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 2 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(10,-5)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 70
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 60
+        presets_vars.m_step_desync = 5
+        presets_vars.m_stepticks_desync = globals_tickcount() % 2
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+
+    if states == 3 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Duck") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 24 
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 3 then 
+        self.save_antiaims.yaw_2 = self.jitter:desync(35,-10)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 25
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 5
+        presets_vars.m_stepticks_desync = globals_tickcount() % 2
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+    if states == 4 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Slow walk") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 35 
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 4 then 
+        self.save_antiaims.yaw_2 = self.jitter:desync(30,10)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 41
+        self.save_antiaims.body_yaw_1 = "static"
+        presets_vars.st_max = 180
+        presets_vars.st_min = 90
+        presets_vars.st_step = 1
+        presets_vars.st_stepticks = globals_tickcount() % 1
+        if presets_vars.st_stepticks == 1 - 1 then
+            if presets_vars.st_return_values < presets_vars.st_max then
+                presets_vars.st_return_values = presets_vars.st_return_values + 1
+            elseif presets_vars.st_return_values >= presets_vars.st_max  then
+                presets_vars.st_return_values = presets_vars.st_min
+            end
+        end
+        self.save_antiaims.body_yaw_2 = self:clamp(presets_vars.st_return_values,presets_vars.st_min,presets_vars.st_max)
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 1
+        presets_vars.m_stepticks_desync = globals_tickcount() % 1
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+    if states == 5 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Air") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 15
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 5 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(20,6)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 66
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 1
+        presets_vars.m_stepticks_desync = globals_tickcount() % 1
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+end
+
+
 g_antiaim.direction = {}
 g_antiaim.direction.c_var = {
     saved_dir = 0,
@@ -967,7 +1345,7 @@ g_antiaim.direction.c_var = {
     back = false
 }
 function g_antiaim.direction:run_direction()
-    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"anti-aim") == false then
+    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"-misc-") == false then
         return
     end
     ui_set(gui.menu.manual_left,"On hotkey")
@@ -977,7 +1355,7 @@ function g_antiaim.direction:run_direction()
     local statements = ui.get(gui.menu.antiaim_settings)
 
     local fs_e = ui_get(gui.menu.freestanding_key) and funcs.ui:table_contains(statements,"freestanding")
-	local edge_e = ui_get(gui.menu.edge_yaw_key) and funcs.ui:table_contains(statements,"\a646464FF Edge yaw")
+	local edge_e = ui_get(gui.menu.edge_yaw_key) and funcs.ui:table_contains(statements,"edgeyaw")
     ui_set(antiaim.freestanding[1], fs_e and "Default" or "-")
     ui_set(antiaim.edge_yaw, edge_e)
     if funcs.ui:table_contains(statements,"\a646464FF Manual antiaim") and client.key_state( 0x45 ) then
@@ -1029,7 +1407,7 @@ function g_antiaim.direction:run_direction()
 	-- 	return
     -- end
     -- local fs_e = ui_get(gui.menu.freestanding_key) and funcs.ui:table_contains(statements,"freestanding")
-	-- local edge_e = ui_get(gui.menu.edge_yaw_key) and funcs.ui:table_contains(statements,"\a646464FF Edge yaw")
+	-- local edge_e = ui_get(gui.menu.edge_yaw_key) and funcs.ui:table_contains(statements,"edgeyaw")
 
 	-- ui_set(antiaim.freestanding[1], fs_e and "Default" or "-")
 	-- ui_set(antiaim.edge_yaw, edge_e)
@@ -1137,7 +1515,7 @@ local lean_lby = function(cmd)
 end
 
 function g_antiaim:run_roll(cmd)
-    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"\a"..menu4.."             Extra antiaim settings") == false then
+    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"-misc-") == false then
         return
     end
 
@@ -1148,21 +1526,21 @@ function g_antiaim:run_roll(cmd)
 
     local states = self:run_states(cmd)
 
-    -- "\a646464FF Stand","\a646464FF Move","\a646464FF Slow walk","\a646464FF Duck","\a646464FF Air","\a646464FF Use","\a646464FF Manual"  
+    -- "*stand*","*move*"","*slow walk*","*duck*","*jump*","\a646464FF Use","\a646464FF Manual"  
     if ui_get(antiaim.quick_peek_assist[1]) and ui_get(antiaim.quick_peek_assist[2]) and funcs.ui:table_contains(ui_get(gui.menu.roll_selects),"\aF8F884D1 Disable roll when peeking") == true then
         check_roll = false
      
     elseif ui_get(gui.menu.roll_key) and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
         check_roll = true 
-    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"\a646464FF Stand") and states == 1 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
+    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"*stand*") and states == 1 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
         check_roll = true 
-    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"\a646464FF Move") and states == 2 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
+    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"*move*") and states == 2 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
         check_roll = true 
-    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"\a646464FF Slow walk") and states == 4 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
+    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"*slow walk*") and states == 4 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
         check_roll = true 
-    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"\a646464FF Duck") and states == 3 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
+    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"*duck*") and states == 3 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
         check_roll = true 
-    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"\a646464FF Air") and states == 5 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
+    elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"*jump*") and states == 5 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
         check_roll = true 
     elseif funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"\a646464FF Use") and states == 7 and funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") then
         check_roll = true 
@@ -1181,7 +1559,7 @@ function g_antiaim:run_roll(cmd)
         self.save_antiaims.yaw_2 = 0
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         if ui_get(gui.menu.roll_inverter) then
             self.save_antiaims.body_yaw_2 = 180
         else
@@ -1196,7 +1574,7 @@ function g_antiaim:run_roll(cmd)
     if self.direction.c_var.saved_dir ~= 0 and states == 6 then
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = -180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -1206,7 +1584,7 @@ function g_antiaim:run_roll(cmd)
         self.save_antiaims.yaw_2 = 29
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -1216,7 +1594,7 @@ function g_antiaim:run_roll(cmd)
         self.save_antiaims.yaw_2 = 9
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -1226,7 +1604,7 @@ function g_antiaim:run_roll(cmd)
         self.save_antiaims.yaw_2 = 45
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -1236,7 +1614,7 @@ function g_antiaim:run_roll(cmd)
         self.save_antiaims.yaw_2 = 4
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
@@ -1248,7 +1626,7 @@ function g_antiaim:run_roll(cmd)
                 self.save_antiaims.yaw_2 = 10
                 self.save_antiaims.yaw_jitter_1 = "Off"
                 self.save_antiaims.yaw_jitter_2 = 0
-                self.save_antiaims.body_yaw_1 = "Static"
+                self.save_antiaims.body_yaw_1 = "static"
                 self.save_antiaims.body_yaw_2 = -180
                 self.save_antiaims.fake_yaw_limit = 60
                 self.save_antiaims.freestanding_body_yaw = false
@@ -1256,7 +1634,7 @@ function g_antiaim:run_roll(cmd)
                 self.save_antiaims.yaw_2 = 10
                 self.save_antiaims.yaw_jitter_1 = "Off"
                 self.save_antiaims.yaw_jitter_2 = 0
-                self.save_antiaims.body_yaw_1 = "Static"
+                self.save_antiaims.body_yaw_1 = "static"
                 self.save_antiaims.body_yaw_2 = 180
                 self.save_antiaims.fake_yaw_limit = 60
                 self.save_antiaims.freestanding_body_yaw = false
@@ -1268,7 +1646,7 @@ function g_antiaim:run_roll(cmd)
             self.save_antiaims.yaw_2 = 4
             self.save_antiaims.yaw_jitter_1 = "Off"
             self.save_antiaims.yaw_jitter_2 = 0
-            self.save_antiaims.body_yaw_1 = "Static"
+            self.save_antiaims.body_yaw_1 = "static"
             if ui_get(gui.menu.roll_inverter) then
                 self.save_antiaims.body_yaw_2 = -180
             else
@@ -1322,10 +1700,10 @@ function g_antiaim.legit:entity_has_c4(ent)
 end
 
 function g_antiaim.legit:run_legit(cmd)
-    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"\a"..menu4.."             Extra antiaim settings") == false then
+    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"-misc-") == false then
         return
     end
-    if funcs.ui:table_contains(ui.get(gui.menu.antiaim_settings),"\a646464FF Antiaim on use") then
+    if funcs.ui:table_contains(ui.get(gui.menu.antiaim_settings),"aa - use") then
 
   
         local plocal = entity_get_local_player()
@@ -1387,7 +1765,7 @@ function g_antiaim:run_knife()
         self.save_antiaims.pitch = "Default"
         self.save_antiaims.yaw_2 = 44
         self.save_antiaims.yaw_jitter_1 = "Off"
-        self.save_antiaims.body_yaw_1 = "Static"
+        self.save_antiaims.body_yaw_1 = "static"
         self.save_antiaims.body_yaw_2 = 180
         self.save_antiaims.freestanding_body_yaw = false
         self.save_antiaims.fake_yaw_limit = 60
@@ -1401,7 +1779,7 @@ function g_antiaim.anti_knife:get_distance(x1, y1, z1, x2, y2, z2)
 end
 
 function g_antiaim.anti_knife:on_run_command()
-    if funcs.ui:table_contains(ui_get(gui.menu.misc_settings),"\a646464FF Anti knife") == true then
+    if funcs.ui:table_contains(ui_get(gui.menu.misc_settings),"anti-knifebot") == true then
         local players = entity.get_players(true)
         local lx, ly, lz = entity.get_prop(entity.get_local_player(), "m_vecOrigin")
         local yaw, yaw_slider = ui.reference("AA", "Anti-aimbot angles", "Yaw")
@@ -1413,9 +1791,6 @@ function g_antiaim.anti_knife:on_run_command()
             local weapon = entity.get_player_weapon(players[i])
             if entity.get_classname(weapon) == "CKnife" and distance <= ui_get(gui.menu.knife_distance) then
                 ui.set(yaw_slider,180)
-                if ui_get(gui.menu.pitch0_onknife) then
-                    ui.set(pitch,"Off")
-                end
             end
         end
     end
@@ -1428,14 +1803,14 @@ g_antiaim.pre_render.vars = {
 }
 function g_antiaim.pre_render:animation_breaker()
     if funcs.ui:table_contains(ui_get(gui.menu.misc_settings),"animations") == true then
-        -- anim_list = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"Break anims","local static legs in air","local no pitch on land","reverse slide"),false,true),
+        -- anim_list = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"Break anims","jumping","ground"","legs""),false,true),
         if not entity.is_alive(entity.get_local_player()) then return end
     
-        if funcs.ui:table_contains(ui_get(gui.menu.anim_list),"local static legs in air") then 
+        if funcs.ui:table_contains(ui_get(gui.menu.anim_list),"jumping") then 
             entity.set_prop(entity.get_local_player(), "m_flPoseParameter", 1, 6) 
         end
            
-        if funcs.ui:table_contains(ui_get(gui.menu.anim_list),"local no pitch on land") then
+        if funcs.ui:table_contains(ui_get(gui.menu.anim_list),"ground") then
             local on_ground = bit.band(entity.get_prop(entity.get_local_player(), "m_fFlags"), 1)
             if on_ground == 1 then
                 self.vars.ground_ticks = self.vars.ground_ticks + 1
@@ -1450,7 +1825,7 @@ function g_antiaim.pre_render:animation_breaker()
         end 
         local legs_types = {[1] = "Off", [2] = "Always slide", [3] = "Never slide"}
     
-        if funcs.ui:table_contains(ui_get(gui.menu.anim_list),"reverse slide") then
+        if funcs.ui:table_contains(ui_get(gui.menu.anim_list),"legs") then
             ui.set(antiaim.leg_movement, legs_types[math.random(1, 3)])
             entity_set_prop(entity_get_local_player(), "m_flPoseParameter", 8, 0)
         end
@@ -1492,20 +1867,24 @@ function g_antiaim:run_main(cmd)
     self:run_roll(cmd)
 
     if check_roll == false then
-        if ui_get(m.presets) == "#1" then
-        end
-        if ui_get(m.presets) then
+        if ui_get(m.presets) == "aggro" then
+            self:run_presets_1(cmd)
+        elseif ui_get(m.presets) == "dynamic" then
+            self:run_presets_2(cmd)
+        elseif ui_get(m.presets) == "defense" then
+            self:run_presets_3(cmd)
+        elseif ui_get(m.presets) == "custom" then
             self:run_custom(cmd)
         end
     end
     
-    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"\a"..menu4.."             Extra antiaim settings") == true then
-        if funcs.ui:table_contains(ui.get(gui.menu.antiaim_settings),"\a646464FF Antiaim on use") and client.key_state(0x45) then
+    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"-misc-") == true then
+        if funcs.ui:table_contains(ui.get(gui.menu.antiaim_settings),"aa - use") and client.key_state(0x45) then
 
             self.save_antiaims.pitch = "Off"
             self.save_antiaims.yaw_1 = "Off"
             if ui_get(gui.menu.static_onuse) and not funcs.ui:table_contains(ui.get(gui.menu.forceroll_states),"\a646464FF Use") == true or not ui_get(gui.menu.roll_key) then
-                self.save_antiaims.body_yaw_1 = "Static"
+                self.save_antiaims.body_yaw_1 = "static"
                 self.save_antiaims.body_yaw_2 = 180
                 self.save_antiaims.yaw_jitter_1 = "Off"
                 self.save_antiaims.freestanding_body_yaw = true
@@ -1522,13 +1901,13 @@ function g_antiaim:run_main(cmd)
  
 
 
-    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"\a"..menu4.."             Extra antiaim settings") == true then
+    if funcs.ui:table_contains(ui_get(gui.menu.main_list),"-misc-") == true then
 
 
         if self.direction.c_var.saved_dir ~= 0 then
             self.save_antiaims.yaw_2 = self.direction.c_var.saved_dir
             if ui_get(gui.menu.prevent_jitter) then
-                self.save_antiaims.body_yaw_1 = "Static"
+                self.save_antiaims.body_yaw_1 = "static"
                 self.save_antiaims.yaw_jitter_1 = "Off"
                 self.save_antiaims.fake_yaw_limit = 60
             end
@@ -1650,7 +2029,7 @@ function render.center:draw()
         local sc = {client_screen_size()}
         local cx,cy = sc[1]/2,sc[2]/2
         local r,g,b,a = ui_get(gui.menu.indicator_color)
-        local text_size = {renderer_measure_text("b","sinity")}
+        local text_size = {renderer_measure_text("-","ETERNAL")}
         local alpha = math.floor(math.sin(math.abs(-math.pi + (globals_curtime() * (1.25 / .75)) % (math.pi * 2))) * 8)
         if alpha <= 1 then
             alpha = 1
@@ -1663,31 +2042,35 @@ function render.center:draw()
         local is_scoped = entity_get_prop(entity_get_player_weapon(entity_get_local_player()), "m_zoomLevel" )
         local is_knife =wpn_id >= 500 and wpn_id <= 525 or wpn_id == 41 or wpn_id == 42 or wpn_id == 59
 
+
         local modifier = entity_get_prop(entity_get_local_player(), "m_flVelocityModifier")
-        if funcs.ui:table_contains(ui_get(gui.menu.indicator_settings),"v1") then
+        if funcs.ui:table_contains(ui_get(gui.menu.indicator_settings),"ind") then
 
             if is_scoped ~= 0 and not is_knife then
-                self.vars.alpha =  render:lerp(self.vars.alpha,55,globals_frametime() * 8)
+                self.vars.alpha =  render:lerp(self.vars.alpha,a,globals_frametime() * 8)
                 self.vars.icon_alpha =  render:lerp(self.vars.icon_alpha,0,globals_frametime() * 8)
                 self.vars.icon_back_alpha =  render:lerp(self.vars.icon_back_alpha,0,globals_frametime() * 8)
 
                 
-                self.vars.add_x = render:lerp(self.vars.add_x,30,globals_frametime() * 8)
+                self.vars.add_x = render:lerp(self.vars.add_x,17,globals_frametime() * 20)
+                self.vars.add_x_n = render:lerp(self.vars.add_x,20,globals_frametime() * 20)
                 self.vars.rect_alpha = render:lerp(self.vars.rect_alpha,55,globals_frametime() * 8)
 
                 self.vars.alpha_glow = render:lerp(self.vars.alpha_glow,0,globals_frametime() * 8)
+                pulse = math.sin(math.abs(-math.pi + (globals.curtime() * (1 / 0.40)) % (math.pi * 2))) * 180
             else
                 self.vars.icon_alpha =  render:lerp(self.vars.icon_alpha,a,globals_frametime() * 8)
                 self.vars.icon_back_alpha =  render:lerp(self.vars.icon_back_alpha,150,globals_frametime() * 8)
-
+                pulse = 255
                 self.vars.alpha =  render:lerp(self.vars.alpha,a,globals_frametime() * 8)
                 self.vars.alpha_glow = render:lerp(self.vars.alpha_glow,alpha,globals_frametime() * 8)
-                self.vars.add_x = render:lerp(self.vars.add_x,0,globals_frametime() * 8)
+                self.vars.add_x = render:lerp(self.vars.add_x,0,globals_frametime() * 5)
+                self.vars.add_x_n = render:lerp(self.vars.add_x,0,globals_frametime() * 5)
                 if modifier ~= 1 then
                     self.vars.add_y = render:lerp(self.vars.add_y,4,globals_frametime() * 8)
                     self.vars.rect_alpha = render:lerp(self.vars.rect_alpha,255,globals_frametime() * 8)
                     self.vars.rect_add_y = render:lerp(self.vars.rect_add_y,4,globals_frametime() * 8)
-                    self.vars.rect_width = render:lerp(self.vars.rect_width,math_floor((renderer.measure_text("b","sinity")- 1) * modifier),globals_frametime() * 8)
+                    self.vars.rect_width = render:lerp(self.vars.rect_width,math_floor((text_size[1]- 1) * modifier),globals_frametime() * 8)
                 else
                     self.vars.rect_alpha = render:lerp(self.vars.rect_alpha,0,globals_frametime() * 8)
                     self.vars.add_y = render:lerp(self.vars.add_y,0,globals_frametime() * 8)
@@ -1706,15 +2089,16 @@ function render.center:draw()
         }
         local svg = renderer.load_svg(bullet[3], 32 , 25 )
         local svg_2 = renderer.load_svg(bullet[4], 32 , 25 )
-        --render_glow_rectangle(cx  - text_size[1]/2 + math_floor(self.vars.add_x),cy + 22- math_floor(self.vars.add_y),text_size[1] - 2 + 2,text_size[2] - 5,r,g,b,15,8,self.vars.alpha_glow,2)
-        renderer_text(cx - renderer.measure_text("b","sinity")/2 + math_floor(self.vars.add_x),cy + 18 - math_floor(self.vars.add_y),r,g,b,255,"b",0,"sin")
-        renderer_text(cx - renderer.measure_text("b","sinity")/2 + math_floor(self.vars.add_x) + 14,cy + 18 - math_floor(self.vars.add_y),255,255,255,255,"b",0,"ity")
-        renderer_rectangle(
-            cx - renderer.measure_text("b","sinity")/2 + math_floor(self.vars.add_x),cy + 18 + text_size[2] - 2 - math_floor(self.vars.add_y) + math_floor(self.vars.rect_add_y),renderer.measure_text("b","sinity"),3,25,25,25,math_floor(self.vars.rect_alpha)
-        )
-        renderer_rectangle(
-            cx - renderer.measure_text("b","sinity")/2 + math_floor(self.vars.add_x) +1,cy + 18   + text_size[2] - 2 - math_floor(self.vars.add_y) + math_floor(self.vars.rect_add_y) + 1,self.vars.rect_width,1,r,g,b,math_floor(self.vars.rect_alpha)
-        )
+        --render_glow_rectangle(cx  - text_size[1]/2 + math_floor(self.vars.add_x),cy + 14- math_floor(self.vars.add_y),text_size[1] - 2 + 2,text_size[2] - 5,r,g,b,15,8,self.vars.alpha_glow,2)
+        if is_scoped ~= 0 and not is_knife then
+            renderer_text(cx + math_floor(self.vars.add_x_n) - 16,cy + 10 - math_floor(self.vars.add_y),255,255,255,pulse,"-",0, math.floor(antiaim_funcs.get_desync(1)))
+        else
+            renderer_text(cx + math_floor(self.vars.add_x_n) - 5,cy + 10 - math_floor(self.vars.add_y),255,255,255,pulse,"-",0, math.floor(antiaim_funcs.get_desync(1)))
+        end
+        renderer_text(cx - text_size[1]/2 + math_floor(self.vars.add_x),cy + 20 - math_floor(self.vars.add_y),r,g,b,pulse,"-",0,"ETERNAL")
+        --renderer_text(cx - text_size[1]/2 + math_floor(self.vars.add_x),cy + 30 - math_floor(self.vars.add_y),r,g,b,pulse,"-",0, string_upper(ui.get(gui.menu.presets)) .. "[" .. states .. "]")
+        --renderer_text(cx - text_size[1]/2 + math_floor(self.vars.add_x) +  text_size[1] + #"  ",cy + 10 - math_floor(self.vars.add_y),255,255,255,pulse,"-",0,"*BETA*")
+        
     end
 end
 
@@ -1724,7 +2108,7 @@ render.arrows.c_var ={
     rerp = 0
 }
 function render.arrows:draw()
-    if funcs.ui:table_contains(ui_get(gui.menu.indicator_settings),"\a646464FF Manual arrows") == true then
+    if funcs.ui:table_contains(ui_get(gui.menu.indicator_settings),"arrows") == true then
         local w, h = client.screen_size()
         local r, g, b = ui.get(gui.menu.indicator_color)
         local realtime = globals.realtime() % 3
@@ -1770,7 +2154,7 @@ render.roll.c_var = {
     roll_a = 0
 }
 function render.roll:draw()
-    if funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") == true and funcs.ui:table_contains(ui_get(gui.menu.main_list),"\a"..menu4.."             Extra antiaim settings") == true then
+    if funcs.ui:table_contains(ui_get(gui.menu.antiaim_settings),"\a646464FF Roll") == true and funcs.ui:table_contains(ui_get(gui.menu.main_list),"-misc-") == true then
         if check_roll == true then
             -- 200,200,200,255
             self.c_var.roll_r = render:lerp(self.c_var.roll_r,200,globals_frametime() * 8)
@@ -1959,7 +2343,6 @@ local solus_render = (function()
 
     solus_m.container = function(x, y, w, h, r, g, b, a, alpha, fn)
         if a > 0 then
-            renderer.blur(x, y, w, h) 
         end
 
         RoundedRect(x, y, w, h, rounding, 17, 17, 17, a)
@@ -1969,7 +2352,7 @@ local solus_render = (function()
     end;
     solus_m.horizontal_container = function(x, y, w, h, r, g, b, a, alpha, r1,
                                             g1, b1, fn)
-        if alpha * 255 > 0 then renderer.blur(x, y, w, h) end
+        if alpha * 255 > 0 then end
         RoundedRect(x, y, w, h, rounding, 17, 17, 17, a)
         HorizontalFadedRoundedRect(x, y, w, h, rounding, r, g, b, alpha * 255,
                                    alpha * o, r1, g1, b1)
@@ -1978,7 +2361,7 @@ local solus_render = (function()
     end;
     solus_m.container_glow = function(x, y, w, h, r, g, b, a, alpha, r1, g1, b1,
                                       fn)
-        if alpha * 255 > 0 then renderer.blur(x, y, w, h) end
+        if alpha * 255 > 0 then end
         RoundedRect(x, y, w, h, rounding, 17, 17, 17, a)
         FadedRoundedGlow(x, y, w, h, rounding, r, g, b, alpha * 255, alpha * o,
                          r1, g1, b1)
@@ -2011,82 +2394,19 @@ end)()
 
 render.watermark.clamp = function(v, min, max) local num = v; num = num < min and min or num; num = num > max and max or num; return num end
 
-function render.watermark:draw_menu()
-    if funcs.ui:table_contains(ui_get(gui.menu.indicator_settings),"\a646464FF Watermark") == true then
-        self.c_var.MENU_ALPHA = render:lerp(self.c_var.MENU_ALPHA,1,globals_frametime() * 3.5)
-    else
-        self.c_var.MENU_ALPHA = render:lerp(self.c_var.MENU_ALPHA,0,globals_frametime() * 3.5)
-    end
-
-    local menu_open = ui_is_menu_open()
-    local sx,sy = client_screen_size()
-    local w ,h = 140,40
-    local steamid64 = js.MyPersonaAPI.GetXuid()
-    local avatar = images.get_steam_avatar(steamid64)
-    local r,g,b,a = ui_get(gui.menu.watermark_color)
-
-    if menu_open then
-
-        self.c_var.OPEN_ALPHA = render:lerp(self.c_var.OPEN_ALPHA,1*self.c_var.MENU_ALPHA,globals_frametime() * 6)
-        self.c_var.MENU_ADD_X = render:lerp(self.c_var.MENU_ADD_X,1,globals_frametime() * 12)
-    else
-        self.c_var.OPEN_ALPHA = render:lerp(self.c_var.OPEN_ALPHA,0,globals_frametime() * 6)
-        self.c_var.MENU_ADD_X = render:lerp(self.c_var.MENU_ADD_X,0,globals_frametime() * 6)
-    end
-
-    if (self.c_var.cur_alpha < self.c_var.min_alpha + 0.02) then
-        self.c_var.target_alpha = self.c_var.max_alpha
-    elseif (self.c_var.cur_alpha > self.c_var.max_alpha - 0.02) then
-        self.c_var.target_alpha = self.c_var.min_alpha
-    end
-    self.c_var.cur_alpha = self.c_var.cur_alpha + (self.c_var.target_alpha - self.c_var.cur_alpha)*self.c_var.speed*(globals.absoluteframetime()*10)
-    solus_render.outlined_glow(sx/2 - (w+3) + w/2,8*self.c_var.MENU_ADD_X,w,h,8,r,g,b,255*self.c_var.OPEN_ALPHA,(30*self.c_var.cur_alpha)*self.c_var.OPEN_ALPHA)
-
-    renderer_rounded_rectangle(sx/2 - (w+3) + w/2,math_floor(8*self.c_var.MENU_ADD_X),w,h,25,25,25,a*self.c_var.OPEN_ALPHA,6)
-    if  avatar ~= nil then
-        avatar:draw(sx/2 - (w+3)+ w/2 + 7.5 ,math_floor(8*self.c_var.MENU_ADD_X) + 7,25,25,255,255,255,255*self.c_var.OPEN_ALPHA,true,"f")
-        renderer_circle_outline(sx/2 - (w+3) + w/2+ 19 ,8*self.c_var.MENU_ADD_X + 20,25,25,25,255*self.c_var.OPEN_ALPHA,17.9,360,1,4.5)
-
-    end
-    local svg = {
-        32,
-        32,
-        '<svg t="1650815150236" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1757" width="200" height="200"><path d="M750.688207 480.651786c-40.458342 65.59852-115.105654 102.817686-205.927943 117.362627 2.382361 26.853806 0.292571 62.00408 20.897903 102.232546 40.77181 79.621013 76.486328 166.28462 88.356337 229.897839 69.819896 30.824408 215.958937-42.339153 257.671154-134.540705 44.721514-98.847085 0-202.082729-74.103967-210.755359-74.083069-8.651732-117.655198 31.555835-109.902076 78.65971 7.732224 47.103875 51.868597 47.918893 96.485622 16.822812 44.617024-31.075183 85.869486 32.517138 37.992389 60.562125-47.897995 28.044987-124.133548 44.867799-168.228125-5.642434-44.094577-50.489335-40.458342-228.205109 143.65219-211.716662 184.110532 16.509344 176.127533 261.683551 118.804583 344.042189C894.465785 956.497054 823.600993 1024.519731 616.37738 1023.997283h-167.18323V814.600288 1023.997283h-168.269921c-83.424432 0-24.743118-174.267619 51.826801-323.750324 20.584435-40.228465 18.494645-75.378739 20.897904-102.232546C262.784849 583.469472 188.137536 546.250306 147.679195 480.651786H93.867093A20.814312 20.814312 0 0 1 73.031883 459.753882c0-11.535643 9.46675-20.897904 20.83521-20.897903H127.993369a236.480679 236.480679 0 0 1-10.093687-41.795808H52.071285A20.814312 20.814312 0 0 1 31.236075 376.162267c0-11.535643 9.46675-20.897904 20.83521-20.897903H114.82769v-0.877712c0-57.009481 15.171878-103.131155 41.795808-139.514406V28.379353c0-11.535643 8.630834-17.136281 19.267867-12.517844l208.979037 90.864085c20.793414-2.08979 42.318255-3.113788 64.323748-3.113787s43.530333 1.044895 64.344646 3.134685l208.979037-90.884983c10.616135-4.618437 19.246969 0.982201 19.246969 12.538742v186.471995c26.623929 36.38325 41.795807 82.504924 41.795808 139.514406V355.264364h62.756405c11.493847 0 20.83521 9.278669 20.83521 20.897903 0 11.535643-9.46675 20.897904-20.83521 20.897904h-65.828397a236.480679 236.480679 0 0 1-10.093688 41.795808h34.126277c11.493847 0 20.83521 9.278669 20.83521 20.897903 0 11.535643-9.46675 20.897904-20.83521 20.897904h-53.833z" p-id="1758" fill="#ffffff"></path></svg>',
-    }
-    local svg = renderer.load_svg(svg[3], 12 , 12 )
-    renderer.texture(svg,(sx/2 - (w+3)+ w/2 ) + 35 + 1 ,8*self.c_var.MENU_ADD_X + 7,10 ,10 ,0,0,0,175*self.c_var.OPEN_ALPHA )
-    renderer.texture(svg,(sx/2 - (w+3) + w/2) + 35 - 1,8*self.c_var.MENU_ADD_X + 5,10,10 ,0,0,0,175*self.c_var.OPEN_ALPHA )
-    renderer.texture(svg,(sx/2 - (w+3)+ w/2) + 35 + 1,8*self.c_var.MENU_ADD_X + 5,10 ,10 ,0,0,0,175*self.c_var.OPEN_ALPHA )
-    renderer.texture(svg,(sx/2 - (w+3) + w/2) + 35 - 1,8*self.c_var.MENU_ADD_X + 7,10 ,10 ,0,0,0,175*self.c_var.OPEN_ALPHA )
-
-    renderer.texture(svg,(sx/2 - (w+3)+ w/2 +1 ) + 35 ,8*self.c_var.MENU_ADD_X+6,10 ,10 ,r,g,b,a*self.c_var.OPEN_ALPHA )
-    local text = {
-        {text = "ATARAXIA",color = {r,g,b,255*self.c_var.OPEN_ALPHA},flags = "-"},
-        {text = ".PUB",color = {255,255,255,255*self.c_var.OPEN_ALPHA},flags = "-"},
-        {text = "    ",color = {255,255,255,255*self.c_var.OPEN_ALPHA},flags = "-"},
-        {text = string_upper(status.build),color = {159,227,255,255*self.c_var.OPEN_ALPHA},flags = "-"},
-
-
-    }
-    solus_render.multitext((sx/2 - (w+3)+ w/2 ) + 46, 8*self.c_var.MENU_ADD_X+5, text)
-    local username = gradient_text(170,170,170,255*self.c_var.OPEN_ALPHA,r,g,b,255*self.c_var.OPEN_ALPHA,"@"..status.username)
-    renderer_text((sx/2 - (w+3)+ w/2 ) + 39 ,8*self.c_var.MENU_ADD_X+20,255,255,255,255*self.c_var.OPEN_ALPHA,"b",0,username)
-
-end
-
 function render.watermark:draw()
     local alpha_glow_then = math.floor(math.sin(math.abs(-math.pi + (globals_curtime() * (1.25 / 1)) % (math.pi * 2))) * 2)
     if alpha_glow_then < 0 then
         alpha_glow_then = 0.8
     end
-    local r,g,b,a = ui_get(gui.menu.watermark_color)
+    local r,g,b,a = ui_get(gui.menu.indicator_color)
     if (self.c_var.cur_alpha < self.c_var.min_alpha + 0.02) then
         self.c_var.target_alpha = self.c_var.max_alpha
     elseif (self.c_var.cur_alpha > self.c_var.max_alpha - 0.02) then
         self.c_var.target_alpha = self.c_var.min_alpha
     end
     self.c_var.cur_alpha = self.c_var.cur_alpha + (self.c_var.target_alpha - self.c_var.cur_alpha)*self.c_var.speed*(globals.absoluteframetime()*10)
-    if funcs.ui:table_contains(ui_get(gui.menu.indicator_settings),"\a646464FF Watermark") == true then
+    if funcs.ui:table_contains(ui_get(gui.menu.indicator_settings),"watermark") == true then
         self.c_var.alpha = render:lerp(self.c_var.alpha,255,globals_frametime() * 12)
         self.c_var.backa = render:lerp(self.c_var.backa,a,globals_frametime() * 12)
         self.c_var.alpha2 = render:lerp(self.c_var.alpha2,170,globals_frametime() * 12)
@@ -2102,43 +2422,25 @@ function render.watermark:draw()
 
     end
     local sx,sy = client_screen_size()
+    local h, m, s, ms = client.system_time()
     local text = {
-        {text = "ATARAXIA",color = {r,g,b,self.c_var.alpha},flags = "-"},
-        {text = ".PUB",color = {255,255,255,self.c_var.alpha},flags = "-"},
-        {text = "     ",color = {255,255,255,self.c_var.alpha},flags = "-"},
-        {text = "@"..string_upper(status.username),color = {r,g,b,self.c_var.alpha},flags = "-"},
-        {text = "     ",color = {255,255,255,self.c_var.alpha},flags = "-"},
-        {text = string_upper(status.build),color = {159,227,255,self.c_var.alpha},flags = "-"},
-        {text = "     ",color = {255,255,255,self.c_var.alpha},flags = "-"},
-
-        {text = string_upper(status.last_updatetime),color = {255,255,255,self.c_var.alpha},flags = "-"},
+        {text = "ETERNAL ",color = {r,g,b,self.c_var.alpha},flags = "-"},
+        {text = "BETA",color = {255,255,255,self.c_var.alpha},flags = "-"},
+        {text = "   /   V1.0",color = {255,255,255,self.c_var.alpha},flags = "-"},
+        {text = "   /   " .. string_upper(ui.get(gui.menu.presets)),color = {255,255,255,self.c_var.alpha},flags = "-"},
+        {text = "   /   " .. h .. ":" .. m,color = {255,255,255,self.c_var.alpha},flags = "-"},
 
 
     }
-    local svg = {
-        32,
-        32,
-        '<svg t="1650815150236" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1757" width="200" height="200"><path d="M750.688207 480.651786c-40.458342 65.59852-115.105654 102.817686-205.927943 117.362627 2.382361 26.853806 0.292571 62.00408 20.897903 102.232546 40.77181 79.621013 76.486328 166.28462 88.356337 229.897839 69.819896 30.824408 215.958937-42.339153 257.671154-134.540705 44.721514-98.847085 0-202.082729-74.103967-210.755359-74.083069-8.651732-117.655198 31.555835-109.902076 78.65971 7.732224 47.103875 51.868597 47.918893 96.485622 16.822812 44.617024-31.075183 85.869486 32.517138 37.992389 60.562125-47.897995 28.044987-124.133548 44.867799-168.228125-5.642434-44.094577-50.489335-40.458342-228.205109 143.65219-211.716662 184.110532 16.509344 176.127533 261.683551 118.804583 344.042189C894.465785 956.497054 823.600993 1024.519731 616.37738 1023.997283h-167.18323V814.600288 1023.997283h-168.269921c-83.424432 0-24.743118-174.267619 51.826801-323.750324 20.584435-40.228465 18.494645-75.378739 20.897904-102.232546C262.784849 583.469472 188.137536 546.250306 147.679195 480.651786H93.867093A20.814312 20.814312 0 0 1 73.031883 459.753882c0-11.535643 9.46675-20.897904 20.83521-20.897903H127.993369a236.480679 236.480679 0 0 1-10.093687-41.795808H52.071285A20.814312 20.814312 0 0 1 31.236075 376.162267c0-11.535643 9.46675-20.897904 20.83521-20.897903H114.82769v-0.877712c0-57.009481 15.171878-103.131155 41.795808-139.514406V28.379353c0-11.535643 8.630834-17.136281 19.267867-12.517844l208.979037 90.864085c20.793414-2.08979 42.318255-3.113788 64.323748-3.113787s43.530333 1.044895 64.344646 3.134685l208.979037-90.884983c10.616135-4.618437 19.246969 0.982201 19.246969 12.538742v186.471995c26.623929 36.38325 41.795807 82.504924 41.795808 139.514406V355.264364h62.756405c11.493847 0 20.83521 9.278669 20.83521 20.897903 0 11.535643-9.46675 20.897904-20.83521 20.897904h-65.828397a236.480679 236.480679 0 0 1-10.093688 41.795808h34.126277c11.493847 0 20.83521 9.278669 20.83521 20.897903 0 11.535643-9.46675 20.897904-20.83521 20.897904h-53.833z" p-id="1758" fill="#ffffff"></path></svg>',
-    }
 
 
-
-    local lua = solus_render.measure_multitext("-", text) + 8
-    local svg = renderer.load_svg(svg[3], 12 , 12 )
-    local text_d = {renderer_measure_text("-",string_upper(status.username))}
+    local lua = solus_render.measure_multitext("-", text)
     local w,h = lua+ 12 ,18
     local screenx,yd = client_screen_size()
-    local x ,y = screenx/ 2 -(lua -8)/ 2 - 4 + 5, sy - 30
+    local x ,y = screenx - 100 -(lua -8)/ 2 - 4 + 5, sy /180
 
     solus_render.container(x, y, w, h, r, g, b, self.c_var.backa,self.c_var.back )
-    solus_render.multitext(x + 12 + 2, y + 3, text)
-
-    renderer.texture(svg,x + 2 + 1,y + 3 + 1,12 ,12 ,0,0,0,self.c_var.alpha2)
-    renderer.texture(svg,x + 2 - 1,y + 3 - 1,12 ,12 ,0,0,0,self.c_var.alpha2)
-    renderer.texture(svg,x + 2 + 1,y + 3 - 1,12 ,12 ,0,0,0,self.c_var.alpha2)
-    renderer.texture(svg,x + 2 - 1,y + 3 + 1,12 ,12 ,0,0,0,self.c_var.alpha2)
-
-    renderer.texture(svg,x + 2,y + 3,12 ,12 ,r,g,b,self.c_var.alpha)
+    solus_render.multitext(x + 5, y + 3, text)
 
     
 
@@ -2312,7 +2614,7 @@ render.notifications.c_var = {
     screen = {client.screen_size()},
 
 }
- 
+  
 
 local function noti()
     local y = render.notifications.c_var.screen[2] - 100
@@ -2324,7 +2626,7 @@ local function noti()
         end
         if info.text ~= nil and info ~= "" then
             local text_size = {renderer.measure_text(nil,info.text)}
-            local r,g,b,a = 255, 255, 255, 255
+            local r,g,b,a = ui_get(gui.menu.indicator_color)
             if info.timer + 3.8 < globals.realtime() then
        
                 --info.box_left = render:lerp(info.box_left,text_size[1],globals.frametime() * 1)
@@ -2339,7 +2641,7 @@ local function noti()
 
             else
                info.alpha = render:lerp(info.alpha,a,globals.frametime() * 4)
-               --info.alpha2 = render:lerp(info.alpha2,1,globals.frametime() * 4)
+               info.alpha2 = render:lerp(info.alpha2,1,globals.frametime() * 4)
                info.alpha3 = render:lerp(info.alpha3,255,globals.frametime() * 4)
 
                info.smooth_y = render:lerp(info.smooth_y,y,globals.frametime() * 2)
@@ -2392,10 +2694,9 @@ render.esp = {}
 
 local r,g,b,a = ui_get(gui.menu.indicator_color)
 
-
 function render:paint()
     
-    if entity_get_local_player() == nil or not entity_is_alive(entity_get_local_player()) or ui_get(gui.menu.master_swtich) == false or funcs.ui:table_contains(ui_get(gui.menu.main_list),"visuals") == false then
+    if entity_get_local_player() == nil or not entity_is_alive(entity_get_local_player()) or ui_get(gui.menu.master_swtich) == false or funcs.ui:table_contains(ui_get(gui.menu.main_list),"-indicators-") == false then
         return
     end
 
@@ -2404,7 +2705,6 @@ function render:paint()
     self.roll:draw()
     self.watermark:draw()
 end
-
 
 local say  = {
     "by UNFAILEr hvh boss",
@@ -2433,8 +2733,8 @@ local function trash_talk()
 end
 
 local function clan_tag()
-    if funcs.ui:table_contains(ui_get(gui.menu.misc_settings),"clan-tag") then
-        client_set_clan_tag("sinity")
+    if funcs.ui:table_contains(ui_get(gui.menu.misc_settings),"\a646464FF Clantag") then
+        client_set_clan_tag("Ataraxia.lua")
     end
 end
 
@@ -2477,13 +2777,42 @@ local function loadd()
     end
 end
 
+
+
+local function default_config()
+    http.get("https://gitee.com/AslierGod/failver/raw/master/defaultconfig",function(success, response) 
+        if not success or response.status ~= 200 then
+           error("[Ataraxia] Unable to connect to the server,check your internet")
+           return
+        end
+        local tbl = funcs.ui:str_to_sub(base64.decode(response.body, 'base64'), "|")
+        local p = 1
+        for i,o in pairs(gui.export['number']) do
+            ui.set(o,tonumber(tbl[p]))
+            p = p + 1
+        end
+        for i,o in pairs(gui.export['string']) do
+            ui.set(o,tbl[p])
+            p = p + 1
+        end
+        for i,o in pairs(gui.export['boolean']) do
+            ui.set(o,funcs.ui:to_boolean(tbl[p]))
+            p = p + 1
+        end
+        for i,o in pairs(gui.export['table']) do
+            ui.set(o,funcs.ui:str_to_sub(tbl[p],','))
+            p = p + 1
+        end
+    end)
+end
+
 local draw_logs = function()
     funcs.misc:lua_msg("this is test")
 end
 
 
-local export = ui.new_button("config","lua",'( sinity ) export config and copy',expd)
-local load = ui.new_button("config","lua",'( sinity ) import config',loadd)
+local export = ui.new_button("aa","anti-aimbot angles",'\a7C90DEFFExport Hex',expd)
+local load = ui.new_button("aa","anti-aimbot angles",'\a7C90DEFFImport Hex',loadd)
 
 local spacing_2 = main:ui(ui.new_label(gui.tab[1],gui.tab[2],"                                       "),false)
 
@@ -2500,7 +2829,6 @@ function main:set_callback(name,func)
     if check_callback == true then
         ui_set_callback(name,func)
     elseif check_callback == false then
-        funcs.misc:lua_msg("Invoke failed")
     end
 end
 
@@ -2534,11 +2862,12 @@ end
 
 local hitgroup_names = {'generic', 'head', 'chest', 'stomach', 'left arm', 'right arm', 'left leg', 'right leg', 'neck', '?', 'gear'}
 
-local player_death = function(e)
+local hit_logs = function(e)
     self = main or self
     local group = hitgroup_names[e.hitgroup + 1] or '?'
     table.insert(render.notifications.table_text, {
-        text = string.format('( sinity ) hit %s in the %s for %d damage (%d health remaining)', entity.get_player_name(e.target), group, e.damage, entity.get_prop(e.target, 'm_iHealth')),
+        client.color_log(149,111,213,string.format('eternal - hit %s in the %s for %d damage (%d health remaining)', entity.get_player_name(e.target), group, e.damage, entity.get_prop(e.target, 'm_iHealth'))),
+        text = string.format('eternal - hit %s in the %s for %d damage (%d health remaining)', entity.get_player_name(e.target), group, e.damage, entity.get_prop(e.target, 'm_iHealth')),
         timer = globals.realtime(),
     
         smooth_y = render.notifications.c_var.screen[2] + 100,
@@ -2546,18 +2875,42 @@ local player_death = function(e)
         alpha2 = 0,
         alpha3 = 0,
 
-        box_left = renderer.measure_text(nil,"\aFFFFFFC8Reset data due to death"),
-        box_right = renderer.measure_text(nil,"\aFFFFFFC8Reset data due to death"),
+        box_left = renderer.measure_text(nil,"reset angles ( due to local_death"),
+        box_right = renderer.measure_text(nil,"reset angles ( due to local_death"),
     
         box_left_1 = 0,
         box_right_1 = 0
     })   
 end
 
-local round_start = function()
+local miss_logs = function(e)
     self = main or self
+    local group = hitgroup_names[e.hitgroup + 1] or '?'
+    table.insert(render.notifications.table_text, {
+        client.color_log(149,111,213,string.format('eternal - missed %s (%s) due to %s', entity.get_player_name(e.target), group, e.reason)),
+        text = string.format('eternal - missed %s (%s) due to %s', entity.get_player_name(e.target), group, e.reason),
+        timer = globals.realtime(),
+    
+        smooth_y = render.notifications.c_var.screen[2] + 100,
+        alpha = 0,
+        alpha2 = 0,
+        alpha3 = 0,
+
+        box_left = renderer.measure_text(nil,"reset angles ( due to local_death"),
+        box_right = renderer.measure_text(nil,"reset angles ( due to local_death"),
+    
+        box_left_1 = 0,
+        box_right_1 = 0
+    })   
+end
+
+
+local player_death = function(e)
+    self = main or self
+    if client_userid_to_entindex(e.userid) == entity_get_local_player() then
         table.insert(render.notifications.table_text, {
-            text = "\aFFFFFFC8Reseted data due to round start",
+            client.color_log(149,111,213,"eternal - reset angles ( ".. ui.get(antiaim.yaw[2]) .." ) due to local_death"),
+            text = "reset angles ( ".. ui.get(antiaim.yaw[2]) .." ) due to local_death",
             timer = globals.realtime(),
         
             smooth_y = render.notifications.c_var.screen[2] + 100,
@@ -2565,8 +2918,29 @@ local round_start = function()
             alpha2 = 0,
             alpha3 = 0,
 
-            box_left = renderer.measure_text(nil,"\aFFFFFFC8Reset data due to round start"),
-            box_right = renderer.measure_text(nil,"\aFFFFFFC8Reset data due to round start"),
+            box_left = renderer.measure_text(nil,"reset angles ( due to local_death"),
+            box_right = renderer.measure_text(nil,"reset angles ( due to local_death"),
+        
+            box_left_1 = 0,
+            box_right_1 = 0
+        })   
+    end
+end
+
+local round_start = function()
+    self = main or self
+        table.insert(render.notifications.table_text, {
+            client.color_log(149,111,213,"eternal - reset angles ( ".. ui.get(antiaim.yaw[2]) .." ) due to pre_start"),
+            text = "reset angles ( ".. ui.get(antiaim.yaw[2]) .." ) due to pre_start",
+            timer = globals.realtime(),
+        
+            smooth_y = render.notifications.c_var.screen[2] + 100,
+            alpha = 0,
+            alpha2 = 0,
+            alpha3 = 0,
+
+            box_left = renderer.measure_text(nil,"reset angles ( due to pre_start"),
+            box_right = renderer.measure_text(nil,"reset angles ( due to pre_start"),
         
             box_left_1 = 0,
             box_right_1 = 0
@@ -2585,7 +2959,6 @@ local paint = function()
 
     render:paint()
 end
-
 
 local websocket_connection
 
@@ -2619,7 +2992,6 @@ local callbacks = {
 
 local verify = function()
     render.menu_effect:draw()
-    render.watermark:draw_menu()
     -- if (websocket_connection ~= nil) then
     --     if globals_tickcount() % 5000 > 4000 then
     --         websocket_connection:send(status.username)
@@ -2654,82 +3026,83 @@ function main:init_gui()
     ui_set_visible(m.fake_lag_limit_d,enable) 
     ui_set_visible(antiaim.fake_lag_limit,false) 
     ui_set_visible(m.temp_manual,false) 
+
     --[+]
     ui_set_visible(m.main_list,enable)
-    ui_set_visible(m.presets,enable and funcs.ui:table_contains(ui_get(m.main_list),"anti-aim") == true)
+    ui_set_visible(m.presets,enable and funcs.ui:table_contains(ui_get(m.main_list),"-aa-") == true)
+    ui_set_visible(m.preset_static,enable and funcs.ui:table_contains(ui_get(m.main_list),"-aa-") == true and ui_get(m.presets) ~= "custom")
 
-    ui_set_visible(m.indicator_settings,enable and funcs.ui:table_contains(ui_get(m.main_list),"visuals") == true)
-    ui_set_visible(m.indicator_color,enable and funcs.ui:table_contains(ui_get(m.main_list),"visuals") == true)
-    ui_set_visible(m.antiaim_settings,enable and funcs.ui:table_contains(ui_get(m.main_list),"anti-aim") == true)
-    ui_set_visible(m.misc_settings,enable and funcs.ui:table_contains(ui_get(m.main_list),"miscellaneous") == true)
+    ui_set_visible(m.indicator_settings,enable and funcs.ui:table_contains(ui_get(m.main_list),"-indicators-") == true)
+    ui_set_visible(m.indicator_color,enable and funcs.ui:table_contains(ui_get(m.main_list),"-indicators-") == true)
+    ui_set_visible(m.antiaim_settings,enable and funcs.ui:table_contains(ui_get(m.main_list),"-misc-") == true)
+    ui_set_visible(m.misc_settings,enable and funcs.ui:table_contains(ui_get(m.main_list),"-misc-") == true)
 
    --[-]
-   ui_set_visible(m.manualarrow_distance,enable and funcs.ui:table_contains(ui_get(m.indicator_settings),"\a646464FF Manual arrows") == true)
-   ui_set_visible(m.manualarrow_size,enable and funcs.ui:table_contains(ui_get(m.indicator_settings),"\a646464FF Manual arrows") == true)
-   ui_set_visible(m.manualarrow_back,enable and funcs.ui:table_contains(ui_get(m.indicator_settings),"\a646464FF Manual arrows") == true)
-   ui_set_visible(m.watermark_color,enable and funcs.ui:table_contains(ui_get(m.indicator_settings),"\a646464FF Watermark") == true)
-    local antiaim_settings  = funcs.ui:table_contains(ui_get(m.main_list),"anti-aim") == true
+   ui_set_visible(m.manualarrow_distance,enable and funcs.ui:table_contains(ui_get(m.indicator_settings),"arrows") == true)
+   ui_set_visible(m.manualarrow_size,enable and funcs.ui:table_contains(ui_get(m.indicator_settings),"arrows") == true)
+   ui_set_visible(m.manualarrow_back,enable and funcs.ui:table_contains(ui_get(m.indicator_settings),"arrows") == true)
+    local antiaim_settings  = funcs.ui:table_contains(ui_get(m.main_list),"-misc-") == true
    ui_set_visible(m.forceroll_states,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Roll") == true and antiaim_settings)
    ui_set_visible(m.roll_selects,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Roll") == true and antiaim_settings)
    ui_set_visible(m.roll_inverter,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Roll") == true and antiaim_settings)
 
-   ui_set_visible(m.disable_use,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Antiaim on use") == true and antiaim_settings )
-   ui_set_visible(m.static_onuse,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Antiaim on use") == true and antiaim_settings )
+   ui_set_visible(m.disable_use,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"aa - use") == true and antiaim_settings )
+   ui_set_visible(m.static_onuse,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"aa - use") == true and antiaim_settings )
    ui_set_visible(m.roll_key,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Roll") == true and antiaim_settings)
    ui_set_visible(m.manual_left,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Manual antiaim") == true and antiaim_settings)
    ui_set_visible(m.manual_right,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Manual antiaim") == true and antiaim_settings)
    ui_set_visible(m.manual_reset,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Manual antiaim") == true and antiaim_settings)
    ui_set_visible(m.prevent_jitter,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Manual antiaim") == true and antiaim_settings)
 
-   ui_set_visible(m.edge_yaw_key,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"\a646464FF Edge yaw") == true and antiaim_settings) 
+   ui_set_visible(m.edge_yaw_key,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"edgeyaw") == true and antiaim_settings) 
    ui_set_visible(m.freestanding_key,enable and funcs.ui:table_contains(ui_get(m.antiaim_settings),"freestanding") == true and antiaim_settings )
-    local misc_d = funcs.ui:table_contains(ui_get(m.main_list),"miscellaneous") == true
-   ui_set_visible(m.pitch0_onknife,enable and funcs.ui:table_contains(ui_get(m.misc_settings),"\a646464FF Anti knife") == true and misc_d)
-   ui_set_visible(m.knife_distance,enable and funcs.ui:table_contains(ui_get(m.misc_settings),"\a646464FF Anti knife") == true and misc_d)
+    local misc_d = funcs.ui:table_contains(ui_get(m.main_list),"-misc-") == true
+   ui_set_visible(m.knife_distance,enable and funcs.ui:table_contains(ui_get(m.misc_settings),"anti-knifebot") == true and misc_d)
    ui_set_visible(m.anim_list,enable and funcs.ui:table_contains(ui_get(m.misc_settings),"animations") == true and misc_d)
-    ui_set_visible(m.states_selection,enable and funcs.ui:table_contains(ui_get(m.main_list),"anti-aim") == true and ui_get(m.presets))
+    ui_set_visible(m.states_selection,enable and funcs.ui:table_contains(ui_get(m.main_list),"-aa-") == true and ui_get(m.presets) == "custom")
     
     for i = 1,#_state do
         local selects = ui_get(m.states_selection)
         local cswitch = ui_get(m.custom[i].enable)
-        local show = enable and selects == _state[i] and funcs.ui:table_contains(ui_get(m.main_list),"anti-aim") == true and ui_get(m.presets) and cswitch
-        ui_set_visible(m.custom[i].enable,selects == _state[i] and funcs.ui:table_contains(ui_get(m.main_list),"anti-aim") == true and ui_get(m.presets))
+        local show = enable and selects == _state[i] and funcs.ui:table_contains(ui_get(m.main_list),"-aa-") == true and ui_get(m.presets) == "custom" and cswitch
+        ui_set_visible(m.custom[i].enable,selects == _state[i] and funcs.ui:table_contains(ui_get(m.main_list),"-aa-") == true and ui_get(m.presets) == "custom")
+        ui_set_visible(m.custom[i].extra_options,show)
         ui_set_visible(m.custom[i].yaw_mode,show)
-        -- {"Static","Tick choke","Choke flick","Experimental flick"}
-        ui_set_visible(m.custom[i].static_yaw,show and ui_get(m.custom[i].yaw_mode) == "Static")
-        ui_set_visible(m.custom[i].tick_yaw_left,show and ui_get(m.custom[i].yaw_mode) == "Tick choke")
-        ui_set_visible(m.custom[i].tick_yaw_right,show and ui_get(m.custom[i].yaw_mode) == "Tick choke")
-        ui_set_visible(m.custom[i].choke_yaw_left,show and ui_get(m.custom[i].yaw_mode) == "Choke flick")
-        ui_set_visible(m.custom[i].choke_yaw_right,show and ui_get(m.custom[i].yaw_mode) == "Choke flick")
-        ui_set_visible(m.custom[i].desync_yaw_left,show and ui_get(m.custom[i].yaw_mode) == "Experimental flick")
-        ui_set_visible(m.custom[i].desync_yaw_right,show and ui_get(m.custom[i].yaw_mode) == "Experimental flick")
+        -- {"static","Period jitter \a7C90DEFF[Tick]","Period jitter \a7C90DEFF[Choke]","Period jitter \a7C90DEFF[Desync]"}
+        ui_set_visible(m.custom[i].static_yaw,show and ui_get(m.custom[i].yaw_mode) == "static")
+        ui_set_visible(m.custom[i].tick_yaw_left,show and ui_get(m.custom[i].yaw_mode) == "Period jitter \a7C90DEFF[Tick]")
+        ui_set_visible(m.custom[i].tick_yaw_right,show and ui_get(m.custom[i].yaw_mode) == "Period jitter \a7C90DEFF[Tick]")
+        ui_set_visible(m.custom[i].choke_yaw_left,show and ui_get(m.custom[i].yaw_mode) == "Period jitter \a7C90DEFF[Choke]")
+        ui_set_visible(m.custom[i].choke_yaw_right,show and ui_get(m.custom[i].yaw_mode) == "Period jitter \a7C90DEFF[Choke]")
+        ui_set_visible(m.custom[i].desync_yaw_left,show and ui_get(m.custom[i].yaw_mode) == "Period jitter \a7C90DEFF[Desync]")
+        ui_set_visible(m.custom[i].desync_yaw_right,show and ui_get(m.custom[i].yaw_mode) == "Period jitter \a7C90DEFF[Desync]")
         ui_set_visible(m.custom[i].yaw_jitter,show)
         ui_set_visible(m.custom[i].yaw_jitter_degree,show)      
-        -- { "Off", "Opposite", "Jitter", "Static"  }  
-        -- {"Static","Period jitter","Exploit"}
+        -- { "Off", "Opposite", "Jitter", "static"  }  
+        -- {"static","Period jitter","Recursion"}
         ui_set_visible(m.custom[i].self_bodyyaw_mode,show)
         ui_set_visible(m.custom[i].bodyyaw_mode,show and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")     
-        ui_set_visible(m.custom[i].bodyyaw_degree,show and ui_get(m.custom[i].bodyyaw_mode) == "Static" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite" )
+        ui_set_visible(m.custom[i].bodyyaw_degree,show and ui_get(m.custom[i].bodyyaw_mode) == "static" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite" )
         ui_set_visible(m.custom[i].jitter_bodyyaw_degree_left,show and ui_get(m.custom[i].bodyyaw_mode) == "Period jitter" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
         ui_set_visible(m.custom[i].jitter_bodyyaw_degree_right,show and ui_get(m.custom[i].bodyyaw_mode) == "Period jitter" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
-        ui_set_visible(m.custom[i].step_bodyyaw_degree_left,show and ui_get(m.custom[i].bodyyaw_mode) == "Exploit" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
-        ui_set_visible(m.custom[i].step_bodyyaw_degree_right,show and ui_get(m.custom[i].bodyyaw_mode) == "Exploit" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
-        ui_set_visible(m.custom[i].body_yaw_step_ticks,show and ui_get(m.custom[i].bodyyaw_mode) == "Exploit" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
-        ui_set_visible(m.custom[i].body_yaw_step_value,show and ui_get(m.custom[i].bodyyaw_mode) == "Exploit" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
+        ui_set_visible(m.custom[i].step_bodyyaw_degree_left,show and ui_get(m.custom[i].bodyyaw_mode) == "Recursion" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
+        ui_set_visible(m.custom[i].step_bodyyaw_degree_right,show and ui_get(m.custom[i].bodyyaw_mode) == "Recursion" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
+        ui_set_visible(m.custom[i].body_yaw_step_ticks,show and ui_get(m.custom[i].bodyyaw_mode) == "Recursion" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
+        ui_set_visible(m.custom[i].body_yaw_step_value,show and ui_get(m.custom[i].bodyyaw_mode) == "Recursion" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Opposite")
 
     
-        -- {"Static","Timer","Progressively increase"}
+        -- {"static","tick flaw","Progressively increase"}
         ui_set_visible(m.custom[i].fake_yaw_mode,show and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off")
-        ui_set_visible(m.custom[i].static_fakeyaw,show and ui_get(m.custom[i].fake_yaw_mode) == "Static" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" )
-        ui_set_visible(m.custom[i].jitter_fakeyaw_left,show and ui_get(m.custom[i].fake_yaw_mode) == "Timer" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off"and ui_get(m.custom[i].fake_yaw_mode) ~= "Static" )
-        ui_set_visible(m.custom[i].jitter_fakeyaw_right,show and ui_get(m.custom[i].fake_yaw_mode) == "Timer" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "Static")
-        ui_set_visible(m.custom[i].step_ticks,show and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off"and ui_get(m.custom[i].fake_yaw_mode) ~= "Static" )
-        ui_set_visible(m.custom[i].step_value,show and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off"and ui_get(m.custom[i].fake_yaw_mode) ~= "Static")
-        ui_set_visible(m.custom[i].step_ticks,show and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "Static")
+        ui_set_visible(m.custom[i].static_fakeyaw,show and ui_get(m.custom[i].fake_yaw_mode) == "static" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" )
+        ui_set_visible(m.custom[i].jitter_fakeyaw_left,show and ui_get(m.custom[i].fake_yaw_mode) == "tick flaw" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off"and ui_get(m.custom[i].fake_yaw_mode) ~= "static" )
+        ui_set_visible(m.custom[i].jitter_fakeyaw_right,show and ui_get(m.custom[i].fake_yaw_mode) == "tick flaw" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "static")
+        ui_set_visible(m.custom[i].step_ticks,show and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off"and ui_get(m.custom[i].fake_yaw_mode) ~= "static" )
+        ui_set_visible(m.custom[i].step_value,show and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off"and ui_get(m.custom[i].fake_yaw_mode) ~= "static")
+        ui_set_visible(m.custom[i].step_ticks,show and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "static")
 
-        ui_set_visible(m.custom[i].step_abs,show and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "Static")
-        ui_set_visible(m.custom[i].step_fake_min,show  and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "Static" )
-        ui_set_visible(m.custom[i].step_fake_max,show  and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "Static" )
+        ui_set_visible(m.custom[i].step_abs,show and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "static")
+        ui_set_visible(m.custom[i].step_fake_min,show  and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "static" )
+        ui_set_visible(m.custom[i].step_fake_max,show  and ui_get(m.custom[i].fake_yaw_mode) == "Progressively increase" and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off" and ui_get(m.custom[i].fake_yaw_mode) ~= "static" )
         ui_set_visible(m.custom[i].freestanding_bodyyaw,show and ui_get(m.custom[i].self_bodyyaw_mode) ~= "Off")
     end
 
@@ -2739,13 +3112,15 @@ function main:init_gui()
     main:callback("paint",paint,enable)
     main:callback("pre_render",pre_render,enable)
     main:callback("aim_hit",aim_hit,enable)
-    main:callback("aim_hit",player_death,enable)
+    main:callback("player_death",player_death,enable)
+    main:callback("aim_hit",hit_logs,enable)
+    main:callback("aim_miss",miss_logs,enable)
     main:callback("round_start",round_start,enable)
     main:callback("paint_ui",verify,enable)
 
     main:callback("setup_command",g_antiaim.run_trustd,funcs.ui:table_contains(ui_get(gui.menu.forceroll_states),"\aF8F884D1 Match making") == true)
 
-    main:callback("paint",clan_tag,funcs.ui:table_contains(ui_get(gui.menu.misc_settings),"clan-tag") == true)
+    main:callback("paint",clan_tag,funcs.ui:table_contains(ui_get(gui.menu.misc_settings),"\a646464FF Clantag") == true)
 
 
 end
@@ -2787,14 +3162,14 @@ function main:register_callbacks()
             funcs.misc:lua_msg_banned("Couldn't connect to the server,check your internet connection.")
 
             table.insert(render.notifications.table_text, {
-                text = "\aFFFFFFC8Couldn't connect to the server,check your internet connection.",
+                text = "Couldn't connect to the server,check your internet connection.",
                 timer = globals.realtime(),
                 smooth_y = render.notifications.c_var.screen[2] + 100,
                 alpha = 0,
                 alpha2 = 0,
                 alpha3 = 0,
-                box_left = renderer.measure_text(nil,"\aFFFFFFC8Couldn't connect to the server,check your internet connection."),
-                box_right = renderer.measure_text(nil,"\aFFFFFFC8Couldn't connect to the server,check your internet connection."),
+                box_left = renderer.measure_text(nil,"Couldn't connect to the server,check your internet connection."),
+                box_right = renderer.measure_text(nil,"Couldn't connect to the server,check your internet connection."),
                 box_left_1 = 0,
                 box_right_1 = 0
             })
@@ -2809,19 +3184,5 @@ end
 
 client_set_event_callback("paint_ui",noti)
 
+
 main:register_callbacks()
-
-client.color_log(255, 255, 255, "(|-------------------------------------------------------|)")
-client.color_log(255, 0, 0, "                 sinity version 1.0.2 loaded")
-client.color_log(255, 0, 0, "           updates: https://discord.gg/bXzyh5F3eW")
-client.color_log(255, 255, 255, "(|-------------------------------------------------------|)")
-
---changelogs
-client.color_log(255, 0, 0, "  ")
-
-client.color_log(255, 0, 0, "sinity\0")
-client.color_log(255, 255, 255, " changelogs - 1.0.2")
-
-client.color_log(255, 0, 0, "  ")
-client.color_log(255, 0, 0, "[ recoded ] \0")
-client.color_log(255, 255, 255, "lua & loader")
