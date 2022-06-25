@@ -217,7 +217,7 @@ local __state = {"\a8A8AB2FF(stand)","\a8A8AB2FF(move)","\a8A8AB2FF(slow)","\a8A
 gui.menu = {
     master_swtich = main:ui(ui_new_checkbox(gui.tab[1],gui.tab[2],"\a8A8AB2FFeternal"),true),
     main_list = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a8A8AB2FFenables","-indicators-","-aa-","-misc-"),true),
-    presets = main:ui(ui_new_combobox(gui.tab[1],gui.tab[2],"\a8A8AB2FFpresets",{"aggressive", "defense", "flick"}),true),
+    presets = main:ui(ui_new_combobox(gui.tab[1],gui.tab[2],"\a8A8AB2FFpresets",{"aggressive", "defense", "flick", "dynamic"}),true),
     preset_static = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a8A8AB2FFstatic if...","*stand*","*move*","*slow walk*","*duck*","*jump*"),true),
     antiaim_settings = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a8A8AB2FFextra aa","aa - use","edgeyaw","freestanding"),true),
     indicator_settings = main:ui(ui_new_multiselect(gui.tab[1],gui.tab[2],"\a8A8AB2FFindicator setts", "ind", "watermark"),true),
@@ -1306,7 +1306,7 @@ function g_antiaim:flick(cmd)
     end
 
 
-    if states == 5 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*jump*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+    if states == 5 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Air") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
         self.save_antiaims.yaw_2 = 15
         self.save_antiaims.yaw_jitter_1 = "Off"
         self.save_antiaims.yaw_jitter_2 = 0
@@ -1315,9 +1315,189 @@ function g_antiaim:flick(cmd)
         self.save_antiaims.fake_yaw_limit = 60
         self.save_antiaims.freestanding_body_yaw = false
     elseif states == 5 then
-        self.save_antiaims.yaw_2 = self.jitter:desync(15,-20)
+        self.save_antiaims.yaw_2 = self.jitter:desync(20,6)
         self.save_antiaims.yaw_jitter_1 = "Center"
-        self.save_antiaims.yaw_jitter_2 = 35
+        self.save_antiaims.yaw_jitter_2 = 66
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 1
+        presets_vars.m_stepticks_desync = globals_tickcount() % 1
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+end
+
+
+function g_antiaim:dynamic(cmd)
+
+    states = self:run_presets_states(cmd)
+
+    self.save_antiaims.yaw_base = "At targets"
+    self.save_antiaims.yaw_1 = "180"
+    self.save_antiaims.pitch = "Default"
+    if states == 1 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*stand*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 0
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 1 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(18,28)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 67
+        self.save_antiaims.body_yaw_1 = "static"
+        presets_vars.st_max = 180
+        presets_vars.st_min = 90
+        presets_vars.st_step = 1
+        presets_vars.st_stepticks = globals_tickcount() % 1
+        if presets_vars.st_stepticks == 1 - 1 then
+            if presets_vars.st_return_values < presets_vars.st_max then
+                presets_vars.st_return_values = presets_vars.st_return_values + 1
+            elseif presets_vars.st_return_values >= presets_vars.st_max  then
+                presets_vars.st_return_values = presets_vars.st_min
+            end
+        end
+        self.save_antiaims.body_yaw_2 = self:clamp(presets_vars.st_return_values,presets_vars.st_min,presets_vars.st_max)
+        presets_vars.st_max_desync = 60
+        presets_vars.st_min_desync = 20
+        presets_vars.st_step_desync = 5
+        presets_vars.st_stepticks_desync = globals_tickcount() % 3
+        if presets_vars.st_stepticks_desync == 1 - 1 then
+            if presets_vars.st_return_values_desync < presets_vars.st_max_desync then
+                presets_vars.st_return_values_desync = presets_vars.st_return_values_desync + 1
+            elseif presets_vars.st_return_values_desync >= presets_vars.st_max_desync  then
+                presets_vars.st_return_values_desync = presets_vars.st_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.st_return_values_desync,presets_vars.st_min_desync,presets_vars.st_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+    if states == 2 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*move*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 0
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 2 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(41, -28)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 18
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 60
+        presets_vars.m_step_desync = 5
+        presets_vars.m_stepticks_desync = globals_tickcount() % 2
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+
+    if states == 3 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*duck*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 24 
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 3 then 
+        self.save_antiaims.yaw_2 = self.jitter:desync(35,-10)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 25
+        self.save_antiaims.body_yaw_1 = "Jitter"
+        self.save_antiaims.body_yaw_2 = 0
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 5
+        presets_vars.m_stepticks_desync = globals_tickcount() % 2
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+    if states == 4 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"*slow walk*") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 35 
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 4 then 
+        self.save_antiaims.yaw_2 = self.jitter:desync(22,10)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 41
+        self.save_antiaims.body_yaw_1 = "static"
+        presets_vars.st_max = 180
+        presets_vars.st_min = 90
+        presets_vars.st_step = 1
+        presets_vars.st_stepticks = globals_tickcount() % 1
+        if presets_vars.st_stepticks == 1 - 1 then
+            if presets_vars.st_return_values < presets_vars.st_max then
+                presets_vars.st_return_values = presets_vars.st_return_values + 1
+            elseif presets_vars.st_return_values >= presets_vars.st_max  then
+                presets_vars.st_return_values = presets_vars.st_min
+            end
+        end
+        self.save_antiaims.body_yaw_2 = self:clamp(presets_vars.st_return_values,presets_vars.st_min,presets_vars.st_max)
+        presets_vars.m_max_desync = 60
+        presets_vars.m_min_desync = 30
+        presets_vars.m_step_desync = 1
+        presets_vars.m_stepticks_desync = globals_tickcount() % 1
+        if presets_vars.m_stepticks_desync == 1 - 1 then
+            if presets_vars.m_return_values_desync < presets_vars.m_max_desync then
+                presets_vars.m_return_values_desync = presets_vars.m_return_values_desync + 1
+            elseif presets_vars.m_return_values_desync >= presets_vars.m_max_desync  then
+                presets_vars.m_return_values_desync = presets_vars.m_min_desync
+            end
+        end
+        self.save_antiaims.fake_yaw_limit = self:clamp(presets_vars.m_return_values_desync,presets_vars.m_min_desync,presets_vars.m_max_desync)
+        self.save_antiaims.freestanding_body_yaw = false
+    end
+
+
+    if states == 5 and funcs.ui:table_contains(ui_get(gui.menu.preset_static),"\a646464FF Air") == true and not (ui.get(antiaim.doubletap[1]) and ui.get(antiaim.doubletap[2])) and not (ui_get(antiaim.hide_shots[1]) and  ui_get(antiaim.hide_shots[2])) then
+        self.save_antiaims.yaw_2 = 15
+        self.save_antiaims.yaw_jitter_1 = "Off"
+        self.save_antiaims.yaw_jitter_2 = 0
+        self.save_antiaims.body_yaw_1 = "static"
+        self.save_antiaims.body_yaw_2 = 180
+        self.save_antiaims.fake_yaw_limit = 60
+        self.save_antiaims.freestanding_body_yaw = false
+    elseif states == 5 then
+        self.save_antiaims.yaw_2 = self.jitter:desync(20,6)
+        self.save_antiaims.yaw_jitter_1 = "Center"
+        self.save_antiaims.yaw_jitter_2 = 66
         self.save_antiaims.body_yaw_1 = "Jitter"
         self.save_antiaims.body_yaw_2 = 0
         presets_vars.m_max_desync = 60
@@ -1863,8 +2043,8 @@ function g_antiaim:run_main(cmd)
             self:flick(cmd)
         elseif ui_get(m.presets) == "defense" then
             self:defense(cmd)
-        elseif ui_get(m.presets) == "custom" then
-            self:run_custom(cmd)
+        elseif ui_get(m.presets) == "dynamic" then
+            self:dynamic(cmd)
         end
     end
     
